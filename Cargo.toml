@@ -1,0 +1,24 @@
+[package]
+name = "commentater"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "libtater"
+path = "src/lib.rs"
+
+[[bin]]
+name = "server"
+
+[dependencies]
+anyhow = "1.0.86"
+axum = "0.7.5"
+dotenv = "0.15.0"
+log = "0.4.22"
+reqwest = "0.12.5"
+simplelog = "0.12.2"
+scraper = "0.20.0"
+sqlx = { version="0.8.0", features=["runtime-tokio", "postgres", "derive", "migrate", "time"] }
+tokio = { version = "1.39.2", features = ["rt", "rt-multi-thread", "macros"] }
+time = { version = "0.3.36", features = ["macros"] }
+thiserror = "1.0.63"
