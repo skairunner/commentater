@@ -4,6 +4,8 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
+use time::{PrimitiveDateTime, error::Parse as ParseError};
+use time::macros::format_description;
 
 pub struct Article {
     pub title: String,
@@ -24,7 +26,7 @@ pub struct Comment {
     pub index: i16,
     pub author_avatar: String,
     pub author_name: String,
-    pub comment_datetime: String,
+    pub comment_datetime: PrimitiveDateTime,
     pub content: String,
 }
 
@@ -84,12 +86,17 @@ fn get_comment_info(element: &ElementRef, index: i16) -> Comment {
         .attr("src")
         .expect("Could not find attribute 'src' on img")
         .to_string();
-    let comment_datetime = get_text_content(
-        &element
-            .select(&get_selector(".comment-box-date"))
-            .next()
-            .expect("Could not find comment-box-date"),
-    );
+    let datetime_str = element
+        .select(&get_selector(".comment-box-date"))
+        .next()
+        .expect("Could not find comment-box-date")
+        .text()
+        .next()
+        .unwrap()
+        .trim()
+        .to_string();
+    let comment_datetime = parse_date(&datetime_str)
+        .unwrap_or_else(|_| panic!("Invalid date {datetime_str}"));
     let content = get_text_content(
         &element
             .select(&get_selector(".comment-box-content p"))
@@ -153,10 +160,21 @@ pub fn parse_page(page_body: &str) -> Article {
     }
 }
 
+pub fn parse_date(s: &str) -> Result<PrimitiveDateTime, ParseError> {
+    let format = format_description!("[month repr:short] [day padding:none], [year] [hour repr:24]:[minute]");
+    PrimitiveDateTime::parse(s, format)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use std::fs;
+    use time::macros::datetime;
+
+    #[test]
+    fn test_parse_date() {
+        assert_eq!(parse_date("Aug 24, 2024 03:12"), Ok(datetime!(2024-08-24 03:12)))
+    }
 
     #[test]
     fn test_parse_page() {

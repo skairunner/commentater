@@ -23,5 +23,5 @@ simplelog = "0.12.2"
 scraper = "0.20.0"
 sqlx = { version="0.8.0", features=["runtime-tokio", "postgres", "derive", "migrate", "time"] }
 tokio = { version = "1.39.2", features = ["rt", "rt-multi-thread", "macros"] }
-time = { version = "0.3.36", features = ["macros"] }
+time = { version = "0.3.36", features = ["macros", "parsing"] }
 thiserror = "1.0.63"
