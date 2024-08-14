@@ -105,6 +105,7 @@ fn get_comment_info(element: &ElementRef, index: i16) -> Comment {
     }
 }
 
+/// Parse an article page and extract all information we need from it.
 pub fn parse_page(page_body: &str) -> Article {
     let page = Html::parse_document(page_body);
     let world_node = page
@@ -132,10 +133,15 @@ pub fn parse_page(page_body: &str) -> Article {
     let mut comments = vec![];
     for (index, element) in page.select(&get_selector(".comment-box")).enumerate() {
         let comment = get_comment_info(&element, index as i16);
+        let mut replies = vec![];
+        for (index, reply) in element.select(&get_selector(".comment-box-reply")).enumerate() {
+            replies.push(get_comment_info(&reply, index as i16));
+        }
+        let author_worldanvil_id = find_class_with_prefix(&element, "comment-author");
         comments.push(RootComment {
             comment,
-            author_worldanvil_id: "".to_string(),
-            replies: vec![],
+            author_worldanvil_id,
+            replies,
         });
     }
 
@@ -165,6 +171,17 @@ mod test {
             article.worldanvil_id,
             "4cdfec2c-b875-4dc6-b5c9-146470e9ac80"
         );
+        let expected_authors = vec![
+          ("Tyrdal", "d05d748e-57d9-42f6-80fc-eff50fabda50"),
+          ("CoolG1319", "b51561d7-f49f-4493-85b1-5f5b2ff4c243"),
+          ("skairunner", "9fe45c42-cb7e-47f0-bfb0-bd98762dda16"),
+        ];
+        for ((expected_author, expected_id), comment) in expected_authors.iter().zip(&article.comments) {
+            assert_eq!(*expected_author, comment.comment.author_name);
+            assert_eq!(*expected_id, comment.author_worldanvil_id);
+            assert_eq!(comment.replies.len(), 1);
+            assert_eq!(comment.replies[0].author_name, "nnie");
+        }
         println!("{:#?}", article.comments);
     }
 }
