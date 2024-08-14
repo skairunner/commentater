@@ -12,9 +12,10 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            AppError::InternalError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong!".to_owned())
-            }
+            AppError::InternalError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Something went wrong!".to_owned(),
+            ),
         };
 
         (status, message).into_response()
