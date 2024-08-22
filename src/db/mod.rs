@@ -1,6 +1,7 @@
 use dotenv::var as envvar;
 use sqlx::postgres::PgConnectOptions;
 
+pub mod query;
 pub mod schema;
 
 pub fn get_connection_options() -> PgConnectOptions {

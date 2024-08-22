@@ -10,15 +10,20 @@ path = "src/lib.rs"
 [[bin]]
 name = "server"
 
+[[bin]]
+name = "create_test_data"
+
 [dependencies]
 anyhow = "1.0.86"
 axum = "0.7.5"
+base64 = "0.22.1"
 dotenv = "0.15.0"
 itertools = "0.13.0"
 lazy_static = "1.5.0"
 log = "0.4.22"
 regex = "1.10.6"
 reqwest = "0.12.5"
+serde = { version="1.0.208", features = ["derive"] }
 simplelog = "0.12.2"
 scraper = "0.20.0"
 sqlx = { version="0.8.0", features=["runtime-tokio", "postgres", "derive", "migrate", "time"] }

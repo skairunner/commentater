@@ -4,8 +4,8 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
-use time::{PrimitiveDateTime, error::Parse as ParseError};
 use time::macros::format_description;
+use time::{error::Parse as ParseError, PrimitiveDateTime};
 
 pub struct Article {
     pub title: String,
@@ -95,8 +95,8 @@ fn get_comment_info(element: &ElementRef, index: i16) -> Comment {
         .unwrap()
         .trim()
         .to_string();
-    let comment_datetime = parse_date(&datetime_str)
-        .unwrap_or_else(|_| panic!("Invalid date {datetime_str}"));
+    let comment_datetime =
+        parse_date(&datetime_str).unwrap_or_else(|_| panic!("Invalid date {datetime_str}"));
     let content = get_text_content(
         &element
             .select(&get_selector(".comment-box-content p"))
@@ -141,7 +141,10 @@ pub fn parse_page(page_body: &str) -> Article {
     for (index, element) in page.select(&get_selector(".comment-box")).enumerate() {
         let comment = get_comment_info(&element, index as i16);
         let mut replies = vec![];
-        for (index, reply) in element.select(&get_selector(".comment-box-reply")).enumerate() {
+        for (index, reply) in element
+            .select(&get_selector(".comment-box-reply"))
+            .enumerate()
+        {
             replies.push(get_comment_info(&reply, index as i16));
         }
         let author_worldanvil_id = find_class_with_prefix(&element, "comment-author");
@@ -161,7 +164,9 @@ pub fn parse_page(page_body: &str) -> Article {
 }
 
 pub fn parse_date(s: &str) -> Result<PrimitiveDateTime, ParseError> {
-    let format = format_description!("[month repr:short] [day padding:none], [year] [hour repr:24]:[minute]");
+    let format = format_description!(
+        "[month repr:short] [day padding:none], [year] [hour repr:24]:[minute]"
+    );
     PrimitiveDateTime::parse(s, format)
 }
 
@@ -173,7 +178,10 @@ mod test {
 
     #[test]
     fn test_parse_date() {
-        assert_eq!(parse_date("Aug 24, 2024 03:12"), Ok(datetime!(2024-08-24 03:12)))
+        assert_eq!(
+            parse_date("Aug 24, 2024 03:12"),
+            Ok(datetime!(2024-08-24 03:12))
+        )
     }
 
     #[test]
@@ -190,11 +198,13 @@ mod test {
             "4cdfec2c-b875-4dc6-b5c9-146470e9ac80"
         );
         let expected_authors = vec![
-          ("Tyrdal", "d05d748e-57d9-42f6-80fc-eff50fabda50"),
-          ("CoolG1319", "b51561d7-f49f-4493-85b1-5f5b2ff4c243"),
-          ("skairunner", "9fe45c42-cb7e-47f0-bfb0-bd98762dda16"),
+            ("Tyrdal", "d05d748e-57d9-42f6-80fc-eff50fabda50"),
+            ("CoolG1319", "b51561d7-f49f-4493-85b1-5f5b2ff4c243"),
+            ("skairunner", "9fe45c42-cb7e-47f0-bfb0-bd98762dda16"),
         ];
-        for ((expected_author, expected_id), comment) in expected_authors.iter().zip(&article.comments) {
+        for ((expected_author, expected_id), comment) in
+            expected_authors.iter().zip(&article.comments)
+        {
             assert_eq!(*expected_author, comment.comment.author_name);
             assert_eq!(*expected_id, comment.author_worldanvil_id);
             assert_eq!(comment.replies.len(), 1);
