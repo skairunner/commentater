@@ -30,3 +30,4 @@ sqlx = { version="0.8.0", features=["runtime-tokio", "postgres", "derive", "migr
 tokio = { version = "1.39.2", features = ["rt", "rt-multi-thread", "macros"] }
 time = { version = "0.3.36", features = ["macros", "parsing"] }
 thiserror = "1.0.63"
+url = "2.5.2"

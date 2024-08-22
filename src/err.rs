@@ -56,3 +56,9 @@ impl From<sqlx::Error> for AppError {
         Self::InternalError(Error::from(value))
     }
 }
+
+impl From<url::ParseError> for AppError {
+    fn from(value: url::ParseError) -> Self {
+        Self::BadRequest(format!("Invalid url: {value}"))
+    }
+}

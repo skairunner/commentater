@@ -10,7 +10,7 @@ use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use dotenv::dotenv;
 use libtater::db::{get_connection_options, query};
 use libtater::err::AppError;
-use libtater::req::get_default_reqwest;
+use libtater::req::{check_url_valid, get_default_reqwest};
 use libtater::response::RegisterArticleResponse;
 use libtater::{TEST_USER_ID, TEST_WORLD_ID};
 use simplelog::TermLogger;
@@ -49,6 +49,7 @@ async fn register_article(
 ) -> Result<Json<RegisterArticleResponse>, AppError> {
     let article_url = URL_SAFE.decode(article_url)?;
     let article_url = std::str::from_utf8(&article_url)?;
+    check_url_valid(article_url)?;
     let r = get_default_reqwest().get(article_url).send().await?;
     if r.status() != 200 {
         return Err(AppError::BadRequest(format!(
