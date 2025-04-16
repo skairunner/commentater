@@ -75,12 +75,13 @@ pub async fn get_next_task(
 /// Mark a task as done
 pub async fn complete_task(
     id: i64,
-    error: bool,
+    error: Option<&str>,
     tx: &mut sqlx::Transaction<'_, Postgres>,
 ) -> sqlx::Result<()> {
     sqlx::query!(
-        "UPDATE article_queue SET done=true, error=$2 WHERE id=$1;",
+        "UPDATE article_queue SET done=true, error=$2, error_msg=$3 WHERE id=$1;",
         id,
+        error.is_some(),
         error
     )
     .execute(&mut **tx)

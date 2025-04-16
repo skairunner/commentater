@@ -4,12 +4,15 @@ use crate::db::query::{
 };
 use crate::db::queue::{complete_task, get_next_task, get_next_user, update_user_queue};
 use crate::db::schema::{ArticleQueueEntry, CommentInsert};
-use crate::parser::{get_page, parse_page, Article as ParsedArticle, RootComment};
+use crate::parser::{get_page, parse_page, Article as ParsedArticle, ParseError, RootComment};
 use sqlx::{Acquire, Postgres};
 use std::collections::HashMap;
 
 pub struct TaskError {
     pub error: anyhow::Error,
+    pub unhandled: bool,
+    /// This may be displayed to the user.
+    pub message: String,
     pub user_queue_id: i64,
     pub task_id: i64,
 }
@@ -18,6 +21,19 @@ pub enum TaskOutcome {
     Completed,
     NoTasks,
     Error(TaskError),
+}
+
+impl ParseError {
+    fn into_parse_error(self, user_queue_id: i64, task_id: i64) -> TaskOutcome {
+        let message = self.to_string();
+        TaskOutcome::Error(TaskError {
+            error: self.into(),
+            unhandled: false,
+            message,
+            user_queue_id,
+            task_id,
+        })
+    }
 }
 
 /// Find comment indices which have no replies
@@ -42,7 +58,7 @@ pub async fn update_task_inner(
     tx: &mut sqlx::Transaction<'_, Postgres>,
 ) -> anyhow::Result<TaskOutcome> {
     let ArticleQueueEntry {
-        id,
+        id: task_id,
         user_id,
         article_id,
     } = task.clone();
@@ -50,7 +66,10 @@ pub async fn update_task_inner(
     let article = get_article(&mut *tx, article_id, user_id).await?;
 
     let page = get_page(&article.url).await?;
-    let parsed = parse_page(&page);
+    let parsed = match parse_page(&page) {
+        Ok(article) => article,
+        Err(e) => return Ok(e.into_parse_error(user_id, task_id))
+    };
     update_article_content(&mut *tx, article_id, &parsed.worldanvil_id, &parsed.title).await?;
     // Clean old comments
     delete_comments(&mut *tx, article_id, user_id).await?;
@@ -129,22 +148,25 @@ pub async fn update_task(mut tx: sqlx::Transaction<'_, Postgres>) -> anyhow::Res
         Ok(TaskOutcome::Error(task_error)) => {
             let TaskError {
                 error,
-                user_queue_id,
-                task_id,
+                message,
+                unhandled,
+                ..
             } = task_error;
             // Log error
-            log::error!("{error:?}");
+            if unhandled {
+                log::error!("{error:?}");
+            }
             // Discard any changes
             inner_tx.rollback().await?;
             // Mark task as errored
-            complete_task(task.id, true, &mut tx).await?;
+            complete_task(task.id, Some(&message), &mut tx).await?;
             // Mark user as touched
             update_user_queue(&user_queue_entry.id, &mut tx).await?;
-        }
+        },
         Ok(TaskOutcome::Completed) => {
             // Mark task as complete, user as touched
             inner_tx.commit().await?;
-            complete_task(task.id, false, &mut tx).await?;
+            complete_task(task.id, None, &mut tx).await?;
             update_user_queue(&user_queue_entry.id, &mut tx).await?;
         }
         Err(e) => {

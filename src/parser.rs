@@ -19,6 +19,10 @@ pub struct Article {
 pub enum ParseError {
     #[error("could not find #visual-container")]
     NoVisualContainer,
+    #[error("could not find #content .article-title h1")]
+    NoHeader,
+    #[error("could not find .page-article-main")]
+    NoPageArticleMain,
 }
 
 #[derive(Debug)]
@@ -156,20 +160,17 @@ fn get_comment_info(element: &ElementRef, index: i16) -> Comment {
 }
 
 /// Parse an article page and extract all information we need from it.
-pub fn parse_page(page_body: &str) -> Article {
+pub fn parse_page(page_body: &str) -> Result<Article, ParseError> {
     let page = Html::parse_document(page_body);
     let world_node = page
         .select(&get_selector("#visual-container"))
         .next()
-        .ok_or_else(|| {
-            anyhow::anyhow!("Could not find #visual-container").context(page_body.to_string())
-        })
-        .unwrap();
+        .ok_or(ParseError::NoVisualContainer)?;
     let world_worldanvil_id = find_class_with_prefix(&world_node, "world");
     let title_node = page
         .select(&get_selector("#content .article-title h1"))
         .next()
-        .expect("Could not find '#content .article-title h1' attribute");
+        .ok_or(ParseError::NoHeader)?;
     // Find all the text nodes, then join and split
     let title = title_node
         .text()
@@ -180,7 +181,7 @@ pub fn parse_page(page_body: &str) -> Article {
     let article_node = page
         .select(&get_selector(".page-article-main"))
         .next()
-        .expect("Could not find .page-article-main attribute");
+        .ok_or(ParseError::NoPageArticleMain)?;
     let worldanvil_id = find_class_with_prefix(&article_node, "article");
     // Handle all comments and their replies.
     let mut comments = vec![];
@@ -201,12 +202,12 @@ pub fn parse_page(page_body: &str) -> Article {
         });
     }
 
-    Article {
+    Ok(Article {
         title,
         worldanvil_id,
         world_worldanvil_id,
         comments,
-    }
+    })
 }
 
 pub fn parse_date(s: &str) -> Result<PrimitiveDateTime, TimeParseError> {
