@@ -1,5 +1,8 @@
 use crate::err::AppError;
+use dotenv::dotenv;
+use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, ClientBuilder, Url};
+use std::env;
 
 static USER_AGENT: &str = concat!(
     "commentater",
@@ -11,6 +14,17 @@ static USER_AGENT: &str = concat!(
 /// Get a new clientbuilder with user agent header set.
 pub fn get_client_builder() -> ClientBuilder {
     ClientBuilder::new().user_agent(USER_AGENT)
+}
+
+/// Fetch a reqwest client that has the appropriate auth headers
+pub fn get_wa_client_builder(user_key: &str) -> ClientBuilder {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-application-key",
+        HeaderValue::from_str(&env::var("WORLDANVIL_APPLICATION_KEY").unwrap()).unwrap(),
+    );
+    headers.insert("x-auth-token", HeaderValue::from_str(user_key).unwrap());
+    get_client_builder().default_headers(headers)
 }
 
 pub fn get_default_reqwest() -> Client {

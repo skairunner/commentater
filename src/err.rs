@@ -18,7 +18,7 @@ impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             Self::InternalError(error) => {
-                log::error!("Internal error: {error}");
+                log::error!("Internal error: {error:?}");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Something went wrong!".to_owned(),
@@ -53,6 +53,18 @@ impl From<std::str::Utf8Error> for AppError {
 
 impl From<sqlx::Error> for AppError {
     fn from(value: sqlx::Error) -> Self {
+        Self::InternalError(Error::from(value))
+    }
+}
+
+impl From<Error> for AppError {
+    fn from(value: Error) -> Self {
+        Self::InternalError(value)
+    }
+}
+
+impl From<tera::Error> for AppError {
+    fn from(value: tera::Error) -> Self {
         Self::InternalError(Error::from(value))
     }
 }

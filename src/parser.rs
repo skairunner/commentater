@@ -1,3 +1,4 @@
+use crate::db::schema::{CommentInsert, WorldAnvilUserInsert};
 use crate::req::get_default_reqwest;
 use anyhow;
 use itertools::Itertools;
@@ -5,13 +6,19 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
 use time::macros::format_description;
-use time::{error::Parse as ParseError, PrimitiveDateTime};
+use time::{error::Parse as TimeParseError, PrimitiveDateTime, UtcOffset};
 
 pub struct Article {
     pub title: String,
     pub worldanvil_id: String,
     pub world_worldanvil_id: String,
     pub comments: Vec<RootComment>,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ParseError {
+    #[error("could not find #visual-container")]
+    NoVisualContainer,
 }
 
 #[derive(Debug)]
@@ -21,6 +28,24 @@ pub struct RootComment {
     pub replies: Vec<Comment>,
 }
 
+impl RootComment {
+    pub fn datetime(&self) -> &PrimitiveDateTime {
+        &self.comment.comment_datetime
+    }
+
+    pub fn content(&self) -> &str {
+        &self.comment.content
+    }
+
+    pub fn as_worldanvil_user(&self) -> WorldAnvilUserInsert {
+        WorldAnvilUserInsert {
+            worldanvil_id: Some(self.author_worldanvil_id.clone()),
+            name: self.comment.author_name.clone(),
+            avatar_url: Some(self.comment.author_avatar.clone()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Comment {
     pub index: i16,
@@ -28,6 +53,24 @@ pub struct Comment {
     pub author_name: String,
     pub comment_datetime: PrimitiveDateTime,
     pub content: String,
+}
+
+impl Comment {
+    pub fn as_db_comment(
+        &self,
+        user_id: i64,
+        author_id: i64,
+        article_id: i64,
+        offset: UtcOffset,
+    ) -> CommentInsert {
+        CommentInsert {
+            user_id,
+            author_id,
+            article_id,
+            content: self.content.clone(),
+            date: self.comment_datetime.assume_offset(offset),
+        }
+    }
 }
 
 pub async fn get_page(url: &str) -> anyhow::Result<String> {
@@ -118,7 +161,10 @@ pub fn parse_page(page_body: &str) -> Article {
     let world_node = page
         .select(&get_selector("#visual-container"))
         .next()
-        .expect("Could not find #visual-container");
+        .ok_or_else(|| {
+            anyhow::anyhow!("Could not find #visual-container").context(page_body.to_string())
+        })
+        .unwrap();
     let world_worldanvil_id = find_class_with_prefix(&world_node, "world");
     let title_node = page
         .select(&get_selector("#content .article-title h1"))
@@ -163,7 +209,7 @@ pub fn parse_page(page_body: &str) -> Article {
     }
 }
 
-pub fn parse_date(s: &str) -> Result<PrimitiveDateTime, ParseError> {
+pub fn parse_date(s: &str) -> Result<PrimitiveDateTime, TimeParseError> {
     let format = format_description!(
         "[month repr:short] [day padding:none], [year] [hour repr:24]:[minute]"
     );
