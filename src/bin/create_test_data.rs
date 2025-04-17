@@ -2,7 +2,7 @@
 
 use dotenv::dotenv;
 use libtater::db::get_connection_options;
-use libtater::db::query::add_test_data;
+use libtater::db::test_queries::add_test_data;
 use sqlx::PgPool;
 
 #[tokio::main]

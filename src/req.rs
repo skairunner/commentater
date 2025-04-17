@@ -1,5 +1,4 @@
 use crate::err::AppError;
-use dotenv::dotenv;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, ClientBuilder, Url};
 use std::env;

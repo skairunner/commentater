@@ -29,10 +29,10 @@ pub struct CommentaterUser {
 
 #[derive(FromRow)]
 pub struct World {
-    id: i64,
-    user_id: i64,
-    worldanvil_id: String,
-    name: String,
+    pub id: i64,
+    pub user_id: i64,
+    pub worldanvil_id: String,
+    pub name: String,
 }
 
 #[derive(FromRow)]
@@ -46,10 +46,10 @@ pub struct Article {
 
 #[derive(FromRow)]
 pub struct ArticleContent {
-    id: i64,
-    article_id: i64,
-    worldanvil_id: String,
-    title: String,
+    pub id: i64,
+    pub article_id: i64,
+    pub worldanvil_id: String,
+    pub title: String,
 }
 
 #[derive(FromRow)]
@@ -67,10 +67,7 @@ pub struct Comment {
 impl Comment {
     /// The unique key for this comment
     pub fn key(&self) -> Option<(i64, OffsetDateTime)> {
-        match self.author_id {
-            Some(author_id) => Some((author_id, self.date)),
-            None => None,
-        }
+        self.author_id.map(|author_id| (author_id, self.date))
     }
 }
 
@@ -84,14 +81,14 @@ pub struct CommentInsert {
 }
 
 pub struct CommentReplies {
-    id: i64,
-    user_id: i64,
-    article_id: i64,
-    parent: i64,
-    content: String,
-    date: OffsetDateTime,
-    starred: bool,
-    deleted: bool,
+    pub id: i64,
+    pub user_id: i64,
+    pub article_id: i64,
+    pub parent: i64,
+    pub content: String,
+    pub date: OffsetDateTime,
+    pub starred: bool,
+    pub deleted: bool,
 }
 
 #[derive(FromRow, Clone)]

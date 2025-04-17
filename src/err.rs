@@ -1,7 +1,7 @@
 use crate::response::AppJsonError;
 use anyhow::Error;
 use axum::http::StatusCode;
-use axum::response::{ErrorResponse, IntoResponse, Response};
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use base64;
 use thiserror;

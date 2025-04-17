@@ -1,10 +1,9 @@
-use crate::db::query::{
-    delete_comments, get_article, get_comments, insert_comments, update_article_content,
-    update_wa_users,
-};
+use crate::db::article::{get_article, update_article_content};
+use crate::db::comments::{delete_comments, insert_comments};
+use crate::db::query::update_wa_users;
 use crate::db::queue::{complete_task, get_next_task, get_next_user, update_user_queue};
 use crate::db::schema::{ArticleQueueEntry, CommentInsert};
-use crate::parser::{get_page, parse_page, Article as ParsedArticle, ParseError, RootComment};
+use crate::parser::{get_page, parse_page, ParseError, RootComment};
 use sqlx::{Acquire, Postgres};
 use std::collections::HashMap;
 
@@ -68,7 +67,7 @@ pub async fn update_task_inner(
     let page = get_page(&article.url).await?;
     let parsed = match parse_page(&page) {
         Ok(article) => article,
-        Err(e) => return Ok(e.into_parse_error(user_id, task_id))
+        Err(e) => return Ok(e.into_parse_error(user_id, task_id)),
     };
     update_article_content(&mut *tx, article_id, &parsed.worldanvil_id, &parsed.title).await?;
     // Clean old comments
@@ -82,10 +81,7 @@ pub async fn update_task_inner(
     // Turn users into a map from worldanvil id to internal id
     let user_map: HashMap<_, _> = users
         .into_iter()
-        .filter_map(|(id, wa_id)| match wa_id {
-            Some(wa_id) => Some((wa_id, id)),
-            None => None,
-        })
+        .filter_map(|(id, wa_id)| wa_id.map(|i| (i, id)))
         .collect();
     // Transform potential users into insertable comments only if they have no replies
     let comments: Vec<_> = parsed
@@ -162,7 +158,7 @@ pub async fn update_task(mut tx: sqlx::Transaction<'_, Postgres>) -> anyhow::Res
             complete_task(task.id, Some(&message), &mut tx).await?;
             // Mark user as touched
             update_user_queue(&user_queue_entry.id, &mut tx).await?;
-        },
+        }
         Ok(TaskOutcome::Completed) => {
             // Mark task as complete, user as touched
             inner_tx.commit().await?;

@@ -3,8 +3,8 @@ use anyhow::Context;
 
 pub mod schema;
 
-const API_BASE: &'static str = "https://www.worldanvil.com/api/external/boromir";
-const LIST_ARTICLES: &'static str = const_format::concatcp!(API_BASE, "/world/articles");
+const API_BASE: &str = "https://www.worldanvil.com/api/external/boromir";
+const LIST_ARTICLES: &str = const_format::concatcp!(API_BASE, "/world/articles");
 
 pub async fn world_list_articles(
     client: &reqwest::Client,
@@ -26,7 +26,7 @@ pub async fn world_list_articles(
             .await?;
         let text = &res.text().await?;
         let res: WorldArticlesResponse =
-            serde_json::from_str(&text).context(format!("Parsing json: {text}"))?;
+            serde_json::from_str(text).context(format!("Parsing json: {text}"))?;
         // If the request returned fewer than 50 responses, this means we are at the end
         if res.entities.len() < 50 {
             done = true;

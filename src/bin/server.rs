@@ -1,15 +1,11 @@
 use anyhow;
 use axum::extract::{Path, State};
-use axum::{
-    response::{Html, Json},
-    routing::get,
-    Router,
-};
+use axum::{response::Html, routing::get, Router};
 use dotenv::dotenv;
 use lazy_static::lazy_static;
-use libtater::db::query::{get_article_ids, register_articles};
+use libtater::db::article::{get_article_ids, register_articles};
+use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
-use libtater::db::{get_connection_options, query};
 use libtater::err::AppError;
 use libtater::req::get_wa_client_builder;
 use libtater::worldanvil_api::world_list_articles;
@@ -17,7 +13,6 @@ use libtater::{TEST_USER_ID, TEST_WORLD_ID};
 use simplelog::TermLogger;
 use sqlx::PgPool;
 use tera::{Context, Tera};
-use tokio;
 
 lazy_static! {
     pub static ref TEMPLATES: Tera = {
