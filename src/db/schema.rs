@@ -104,3 +104,14 @@ pub struct UserQueue {
     pub user_id: i64,
     pub last_updated: OffsetDateTime,
 }
+
+#[derive(FromRow)]
+pub struct ArticleAndStatus {
+    pub article_id: i64,
+    pub title: String,
+    pub url: String,
+    pub last_checked: Option<OffsetDateTime>,
+    pub done: bool,
+    pub error: Option<bool>,
+    pub error_msg: Option<String>,
+}

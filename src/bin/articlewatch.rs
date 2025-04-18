@@ -1,20 +1,28 @@
 // Runs in the background to do article updates.
 
+use std::fs::File;
 use dotenv::dotenv;
 use libtater::article_updater::{update_task, TaskError, TaskOutcome};
 use libtater::db::get_connection_options;
-use simplelog::TermLogger;
+use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
-    TermLogger::init(
-        simplelog::LevelFilter::Info,
-        Default::default(),
-        Default::default(),
-        Default::default(),
-    )?;
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            simplelog::LevelFilter::Info,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+        ),
+        WriteLogger::new(
+            simplelog::LevelFilter::Info,
+            Default::default(),
+            File::create("log/articlewatch.log").unwrap(),
+        )
+    ])?;
     let pool = PgPool::connect_with(get_connection_options()).await?;
     loop {
         let tx = pool.begin().await?;
