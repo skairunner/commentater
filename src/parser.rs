@@ -234,7 +234,7 @@ mod test {
     #[test]
     fn test_parse_page() {
         let fixture = fs::read_to_string("fixtures/example-solaris-page.htm").unwrap();
-        let article = parse_page(&fixture);
+        let article = parse_page(&fixture).unwrap();
         assert_eq!(article.title, "Chewpaper");
         assert_eq!(
             article.world_worldanvil_id,

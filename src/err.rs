@@ -74,3 +74,9 @@ impl From<url::ParseError> for AppError {
         Self::BadRequest(format!("Invalid url: {value}"))
     }
 }
+
+impl From<tower_sessions::session::Error> for AppError {
+    fn from(value: tower_sessions::session::Error) -> Self {
+        Self::InternalError(Error::from(value))
+    }
+}

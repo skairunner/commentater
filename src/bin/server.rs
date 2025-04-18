@@ -1,39 +1,30 @@
-use std::fs::File;
 use anyhow;
 use axum::extract::{Path, State};
-use axum::{response::Html, routing::get, Router};
+use axum::{
+    response::Html,
+    routing::get,
+    Router,
+};
 use dotenv::dotenv;
-use lazy_static::lazy_static;
+use libtater::auth::UserState;
 use libtater::db::article::{get_article_ids, register_articles};
 use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
 use libtater::err::AppError;
+use libtater::log_config::default_log_config;
 use libtater::req::get_wa_client_builder;
+use libtater::routes::login::{login_get, login_post};
+use libtater::templates::TEMPLATES;
 use libtater::worldanvil_api::world_list_articles;
 use libtater::{TEST_USER_ID, TEST_WORLD_ID};
 use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
-use tera::{Context, Tera};
+use std::fs::File;
+use tera::Context;
 use time::Duration;
 use tokio::task::AbortHandle;
 use tower_sessions::{ExpiredDeletion, Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
-use libtater::auth::UserState;
-use libtater::log_config::default_log_config;
-
-lazy_static! {
-    pub static ref TEMPLATES: Tera = {
-        let mut tera = match Tera::new("templates/**/*.html") {
-            Ok(t) => t,
-            Err(e) => {
-                println!("Parsing error(s): {}", e);
-                ::std::process::exit(1);
-            }
-        };
-        tera.autoescape_on(vec![".html"]);
-        tera
-    };
-}
 
 async fn shutdown_signal(deletion_task_abort_handle: AbortHandle) {
     use tokio::signal;
@@ -74,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
             simplelog::LevelFilter::Info,
             Default::default(),
             File::create("log/server.log").unwrap(),
-        )
+        ),
     ])?;
 
     let pool = PgPool::connect_with(get_connection_options()).await?;
@@ -83,7 +74,9 @@ async fn main() -> anyhow::Result<()> {
     let session_store = PostgresStore::new(pool.clone());
     session_store.migrate().await?;
     let session_deleter = tokio::task::spawn(
-        session_store.clone().continuously_delete_expired(tokio::time::Duration::from_secs(60)),
+        session_store
+            .clone()
+            .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
     );
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
@@ -94,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/session", get(check_session))
         .route("/register_world/{world_id}", get(register_world))
         .route("/articles/queue_all", get(queue_all_articles))
+        .route("/login", get(login_get).post(login_post))
         .with_state(pool)
         .layer(session_layer);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;

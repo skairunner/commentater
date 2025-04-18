@@ -1,10 +1,12 @@
-use crate::worldanvil_api::schema::{Article, LimitOffsetBody, State, WorldArticlesResponse};
+use crate::worldanvil_api::schema::{Article, ErrorBody, IdentityBody, IdentityResult, LimitOffsetBody, State, WorldArticlesResponse};
 use anyhow::Context;
+use reqwest::StatusCode;
 
 pub mod schema;
 
 const API_BASE: &str = "https://www.worldanvil.com/api/external/boromir";
 const LIST_ARTICLES: &str = const_format::concatcp!(API_BASE, "/world/articles");
+const USER_IDENTITY: &str = const_format::concatcp!(API_BASE, "/identity");
 
 pub async fn world_list_articles(
     client: &reqwest::Client,
@@ -44,4 +46,23 @@ pub async fn world_list_articles(
         }
     }
     Ok(items)
+}
+
+pub async fn get_user_identity(
+    client: &reqwest::Client,
+) -> anyhow::Result<IdentityResult> {
+    let res = client.get(USER_IDENTITY)
+        .send()
+        .await?;
+    match res.status() {
+        StatusCode::OK => {
+            Ok(IdentityResult::Identified(res.json::<IdentityBody>().await?))
+        }
+        StatusCode::UNAUTHORIZED => {
+            Ok(IdentityResult::NotIdentified(res.json::<ErrorBody>().await?))
+        }
+        _ => {
+            Err(res.error_for_status().unwrap_err().into())
+        }
+    }
 }

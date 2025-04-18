@@ -1,6 +1,6 @@
 use sqlx;
 use sqlx::FromRow;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::OffsetDateTime;
 
 /// A user seen in comments.
 #[derive(FromRow)]
@@ -22,9 +22,10 @@ pub struct WorldAnvilUserInsert {
 #[derive(FromRow)]
 pub struct CommentaterUser {
     pub id: i64,
+    pub display_name: Option<String>,
     pub worldanvil_id: Option<String>,
-    pub last_seen: PrimitiveDateTime,
-    pub api_key: Option<String>,
+    pub last_seen: OffsetDateTime,
+    pub api_key: String,
 }
 
 #[derive(FromRow)]

@@ -88,6 +88,25 @@ pub struct LimitOffsetBody {
     pub offset: i64,
 }
 
+#[derive(Deserialize, PartialEq, Debug)]
+pub struct IdentityBody {
+    pub id: String,
+    pub success: bool,
+    pub username: String,
+    pub userhash: String,
+}
+
+#[derive(Deserialize, PartialEq, Debug)]
+pub struct ErrorBody {
+    pub success: bool,
+    pub error: String,
+}
+
+pub enum IdentityResult {
+    Identified(IdentityBody),
+    NotIdentified(ErrorBody),
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -130,7 +149,7 @@ mod test {
                 icon: "fas fa-image fa-fw".to_string(),
                 url: "https://www.worldanvil.com/w/solaris-nnie/a/04-article".to_string(),
                 folder_id: "cb66dac7-5818-440a-b6cf-5797d2c20729".to_string(),
-                tags: "2022-jul".to_string(),
+                tags: Some("2022-jul".to_string()),
                 update_date: Date {
                     date: "2024-09-02 10:48:03.000000".to_string(),
                     timezone_type: 3,
@@ -150,5 +169,24 @@ mod test {
         })
         .unwrap();
         assert_eq!(json, r#"{"limit":"50","offset":"26"}"#)
+    }
+    
+    #[test]
+    fn test_user_identity() {
+        let json = r#"
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "success": true,
+  "username": "Username",
+  "userhash": "userhash"
+}
+        "#;
+        let value: IdentityBody = serde_json::from_str(&json).unwrap();
+        assert_eq!(value, IdentityBody {
+            id: "3fa85f64-5717-4562-b3fc-2c963f66afa6".to_string(),
+            success: true,
+            username: "Username".to_string(),
+            userhash: "userhash".to_string(),
+        });
     }
 }

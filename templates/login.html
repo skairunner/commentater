@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block body %}
+<div>
+    {% if error %}
+    <div>Something went wrong with the login: {{ error }}</div>
+    {% endif %}
+    <form action="/login" method="post">
+        <h1>Login with your WorldAnvil API key!</h1>
+        <label for="api_key">API Key</label>
+        <input type="password" name="api_key" id="api_key" />
+        <button>Login</button>
+    </form>
+</div>
+{% endblock %}

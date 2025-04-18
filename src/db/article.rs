@@ -119,6 +119,7 @@ pub async fn get_articles_and_status<'a, A: PgAcquire<'a>>(
         WHERE article.user_id=$1 AND article.world_id=$2;",
         user_id,
         world_id,
-    ).fetch_all(&mut *conn)
-        .await
+    )
+    .fetch_all(&mut *conn)
+    .await
 }

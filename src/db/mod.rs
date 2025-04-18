@@ -8,6 +8,7 @@ pub mod query;
 pub mod queue;
 pub mod schema;
 pub mod test_queries;
+pub mod user;
 
 pub fn get_connection_options() -> PgConnectOptions {
     PgConnectOptions::new()

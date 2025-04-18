@@ -11,7 +11,7 @@ pub struct UserState {
 }
 
 impl UserState {
-    const KEY: &'static str = "USER_STATE";
+    pub const KEY: &'static str = "USER_STATE";
 }
 
 impl UserState {
@@ -21,12 +21,19 @@ impl UserState {
     }
 }
 
-impl<S> FromRequestParts<S> for UserState where S: Send + Sync {
+impl<S> FromRequestParts<S> for UserState
+where
+    S: Send + Sync,
+{
     type Rejection = (StatusCode, &'static str);
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let session = Session::from_request_parts(parts, state).await?;
-        let user_state: UserState = session.get(Self::KEY).await.map_err(Self::log_error_and_500)?.unwrap_or_default();
+        let user_state: UserState = session
+            .get(Self::KEY)
+            .await
+            .map_err(Self::log_error_and_500)?
+            .unwrap_or_default();
         Ok(user_state)
     }
 }
