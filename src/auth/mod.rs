@@ -5,13 +5,20 @@ use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
 /// The user id of the active user
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize, Clone)]
 pub struct UserState {
     pub user_id: Option<i64>,
+    pub user_name: Option<String>,
 }
 
 impl UserState {
     pub const KEY: &'static str = "USER_STATE";
+
+    pub fn insert_context(&self, context: &mut tera::Context) {
+        let username = self.user_name.clone().unwrap_or_default();
+        context.insert("username", &username);
+        context.insert("logged_in", &self.user_id.is_some());
+    }
 }
 
 impl UserState {

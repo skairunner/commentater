@@ -1,4 +1,7 @@
-use crate::worldanvil_api::schema::{Article, ErrorBody, IdentityBody, IdentityResult, LimitOffsetBody, State, WorldArticlesResponse};
+use crate::worldanvil_api::schema::{
+    Article, ErrorBody, IdentityBody, IdentityResult, LimitOffsetBody, State, World,
+    WorldArticlesResponse, WorldsForUserResponse,
+};
 use anyhow::Context;
 use reqwest::StatusCode;
 
@@ -7,6 +10,7 @@ pub mod schema;
 const API_BASE: &str = "https://www.worldanvil.com/api/external/boromir";
 const LIST_ARTICLES: &str = const_format::concatcp!(API_BASE, "/world/articles");
 const USER_IDENTITY: &str = const_format::concatcp!(API_BASE, "/identity");
+const WORLDS_FOR_USER: &str = const_format::concatcp!(API_BASE, "/user/worlds");
 
 pub async fn world_list_articles(
     client: &reqwest::Client,
@@ -48,21 +52,34 @@ pub async fn world_list_articles(
     Ok(items)
 }
 
-pub async fn get_user_identity(
+pub async fn get_user_identity(client: &reqwest::Client) -> anyhow::Result<IdentityResult> {
+    let res = client.get(USER_IDENTITY).send().await?;
+    match res.status() {
+        StatusCode::OK => Ok(IdentityResult::Identified(
+            res.json::<IdentityBody>().await?,
+        )),
+        StatusCode::UNAUTHORIZED => Ok(IdentityResult::NotIdentified(
+            res.json::<ErrorBody>().await?,
+        )),
+        _ => Err(res.error_for_status().unwrap_err().into()),
+    }
+}
+
+pub async fn get_worlds_for_user(
     client: &reqwest::Client,
-) -> anyhow::Result<IdentityResult> {
-    let res = client.get(USER_IDENTITY)
+    user_id: &str,
+) -> anyhow::Result<Vec<World>> {
+    let res = client
+        .post(WORLDS_FOR_USER)
+        .query(&[("id", user_id)])
+        .header("Content-Type", "application/json")
+        .body(serde_json::to_string(&LimitOffsetBody {
+            limit: 50,
+            offset: 0,
+        })?)
         .send()
         .await?;
-    match res.status() {
-        StatusCode::OK => {
-            Ok(IdentityResult::Identified(res.json::<IdentityBody>().await?))
-        }
-        StatusCode::UNAUTHORIZED => {
-            Ok(IdentityResult::NotIdentified(res.json::<ErrorBody>().await?))
-        }
-        _ => {
-            Err(res.error_for_status().unwrap_err().into())
-        }
-    }
+    let text = res.text().await?;
+    let res: WorldsForUserResponse = serde_json::from_str(&text).with_context(|| text)?;
+    Ok(res.entities)
 }

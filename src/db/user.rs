@@ -8,7 +8,9 @@ pub async fn get_user_id_or_insert<'a, A: PgAcquire<'a>>(
     worldanvil_id: &str,
 ) -> sqlx::Result<CommentaterUser> {
     let mut conn = conn.acquire().await?;
-    sqlx::query_as!(CommentaterUser, "
+    sqlx::query_as!(
+        CommentaterUser,
+        "
     INSERT INTO commentater_user(api_key, display_name, worldanvil_id)
     VALUES($1, $2, $3)
     ON CONFLICT (api_key) DO UPDATE
@@ -18,6 +20,24 @@ pub async fn get_user_id_or_insert<'a, A: PgAcquire<'a>>(
         display_name,
         worldanvil_id
     )
-        .fetch_one(&mut *conn)
-        .await
+    .fetch_one(&mut *conn)
+    .await
+}
+
+pub async fn get_user<'a, A: PgAcquire<'a>>(
+    conn: A,
+    user_id: &i64,
+) -> sqlx::Result<CommentaterUser> {
+    let mut conn = conn.acquire().await?;
+    sqlx::query_as!(
+        CommentaterUser,
+        "
+        SELECT id, display_name, api_key, last_seen, worldanvil_id
+        FROM commentater_user
+        WHERE id=$1
+        LIMIT 1",
+        user_id
+    )
+    .fetch_one(&mut *conn)
+    .await
 }

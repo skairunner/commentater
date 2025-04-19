@@ -1,17 +1,17 @@
-use axum::extract::State;
 use crate::auth::UserState;
+use crate::db::user::get_user_id_or_insert;
 use crate::err::AppError;
+use crate::req::get_wa_client_builder;
 use crate::templates::TEMPLATES;
+use crate::worldanvil_api::get_user_identity;
+use crate::worldanvil_api::schema::IdentityResult;
+use axum::extract::State;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::{debug_handler, Form};
 use serde::Deserialize;
 use sqlx::PgPool;
 use tera::Context;
 use tower_sessions::Session;
-use crate::db::user::get_user_id_or_insert;
-use crate::req::{get_wa_client_builder};
-use crate::worldanvil_api::get_user_identity;
-use crate::worldanvil_api::schema::IdentityResult;
 
 #[derive(Deserialize)]
 pub struct ApiKeyForm {
@@ -19,10 +19,12 @@ pub struct ApiKeyForm {
 }
 
 /// This is the login page.
-pub async fn login_get(UserState { user_id }: UserState) -> Result<Response, AppError> {
-    if user_id.is_some() {
+pub async fn login_get(user_state: UserState) -> Result<Response, AppError> {
+    if user_state.user_id.is_some() {
         Ok(Redirect::temporary("/").into_response())
     } else {
+        let mut context = Context::new();
+        user_state.insert_context(&mut context);
         let html = TEMPLATES.render("login.html", &Default::default())?;
         Ok(Html(html).into_response())
     }
@@ -40,20 +42,25 @@ pub async fn login_post(
         IdentityResult::Identified(i) => i,
         IdentityResult::NotIdentified(e) => {
             let mut context = Context::new();
-            context.insert("error", &format!("The API key wasn't recognized: {0}", e.error));
+            context.insert(
+                "error",
+                &format!("The API key wasn't recognized: {0}", e.error),
+            );
             let html = TEMPLATES.render("login.html", &context)?;
-            return Ok(Html(html).into_response())
+            return Ok(Html(html).into_response());
         }
     };
     // Find the right user id for the api key, or insert it
     let user = get_user_id_or_insert(&pool, &api_key, &info.username, &info.id).await?;
     // Then update the user's session
-    session.insert(UserState::KEY, UserState {
+    let user_state = UserState {
         user_id: Some(user.id),
-    }).await?;
+        user_name: user.display_name,
+    };
+    session.insert(UserState::KEY, user_state.clone()).await?;
     // Finally render the response
     let mut context = Context::new();
-    context.insert("username", &info.username);
+    user_state.insert_context(&mut context);
     let html = TEMPLATES.render("loggedin.html", &context)?;
     Ok(Html(html).into_response())
 }

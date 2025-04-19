@@ -4,6 +4,13 @@
     <title>Commentater</title>
 </head>
 <body>
+    <div id="header">
+        {% if logged_in %}
+        Logged in as {{ username }}
+        {% else %}
+        <a href="/login">Login</a>
+        {% endif %}
+    </div>
     {% block body %}
     {% endblock %}
 </body>

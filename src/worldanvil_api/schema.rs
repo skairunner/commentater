@@ -107,6 +107,24 @@ pub enum IdentityResult {
     NotIdentified(ErrorBody),
 }
 
+#[derive(Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct World {
+    pub id: String,
+    pub title: String,
+    pub slug: String,
+    pub state: State,
+    pub is_wip: Option<bool>,
+    pub is_draft: Option<bool>,
+    pub entity_class: String,
+}
+
+#[derive(Deserialize)]
+pub struct WorldsForUserResponse {
+    pub success: bool,
+    pub entities: Vec<World>,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -170,7 +188,7 @@ mod test {
         .unwrap();
         assert_eq!(json, r#"{"limit":"50","offset":"26"}"#)
     }
-    
+
     #[test]
     fn test_user_identity() {
         let json = r#"
@@ -182,11 +200,14 @@ mod test {
 }
         "#;
         let value: IdentityBody = serde_json::from_str(&json).unwrap();
-        assert_eq!(value, IdentityBody {
-            id: "3fa85f64-5717-4562-b3fc-2c963f66afa6".to_string(),
-            success: true,
-            username: "Username".to_string(),
-            userhash: "userhash".to_string(),
-        });
+        assert_eq!(
+            value,
+            IdentityBody {
+                id: "3fa85f64-5717-4562-b3fc-2c963f66afa6".to_string(),
+                success: true,
+                username: "Username".to_string(),
+                userhash: "userhash".to_string(),
+            }
+        );
     }
 }

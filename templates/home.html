@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block body %}
+<div>
+    <h1>Commentater</h1>
+    <div>Commentater is a comment management helper. It lets you know which of your articles have comments you have not responded to.</div>
+    {% if logged_in %}
+    <ul>
+    {% for world in worlds %}
+        <li><a href="/world/{{ world.id }}">{{ world.name }}</a></li>
+    {% endfor %}
+    </ul>
+    <form method="post" action="/">
+        <button type="submit">Refresh worlds</button>
+    </form>
+    {% else %}
+    <a href="/login">Login to start.</a>
+    {% endif %}
+</div>
+{% endblock %}

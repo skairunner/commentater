@@ -1,3 +1,4 @@
+use serde::Serialize;
 use sqlx;
 use sqlx::FromRow;
 use time::OffsetDateTime;
@@ -23,15 +24,20 @@ pub struct WorldAnvilUserInsert {
 pub struct CommentaterUser {
     pub id: i64,
     pub display_name: Option<String>,
-    pub worldanvil_id: Option<String>,
+    pub worldanvil_id: String,
     pub last_seen: OffsetDateTime,
     pub api_key: String,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Serialize)]
 pub struct World {
     pub id: i64,
     pub user_id: i64,
+    pub worldanvil_id: String,
+    pub name: String,
+}
+
+pub struct WorldInsert {
     pub worldanvil_id: String,
     pub name: String,
 }

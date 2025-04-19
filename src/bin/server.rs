@@ -1,21 +1,21 @@
 use anyhow;
 use axum::extract::{Path, State};
-use axum::{
-    response::Html,
-    routing::get,
-    Router,
-};
+use axum::http::Method;
+use axum::{response::Html, routing::get, Router};
 use dotenv::dotenv;
 use libtater::auth::UserState;
 use libtater::db::article::{get_article_ids, register_articles};
 use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
+use libtater::db::schema::WorldInsert;
+use libtater::db::user::get_user;
+use libtater::db::world::{get_worlds, upsert_worlds};
 use libtater::err::AppError;
 use libtater::log_config::default_log_config;
 use libtater::req::get_wa_client_builder;
 use libtater::routes::login::{login_get, login_post};
 use libtater::templates::TEMPLATES;
-use libtater::worldanvil_api::world_list_articles;
+use libtater::worldanvil_api::{get_worlds_for_user, world_list_articles};
 use libtater::{TEST_USER_ID, TEST_WORLD_ID};
 use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
@@ -83,7 +83,9 @@ async fn main() -> anyhow::Result<()> {
         .with_expiry(Expiry::OnInactivity(Duration::days(2)));
 
     let app = Router::new()
-        .route("/", get(hello))
+        .route("/", get(list_worlds).post(list_worlds))
+        .route("/world/{world_id}/", get(list_articles))
+        .route("/world/{world_id}/article/{article_id}", get(list_comments))
         .route("/session", get(check_session))
         .route("/register_world/{world_id}", get(register_world))
         .route("/articles/queue_all", get(queue_all_articles))
@@ -99,8 +101,44 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn hello() -> Result<Html<String>, AppError> {
-    Ok(Html("<h1>Commentater</h1>".to_string()))
+/// The home page.
+/// List the worlds that are currently known to Commentater.
+async fn list_worlds(
+    State(pool): State<PgPool>,
+    user_state: UserState,
+    method: Method,
+) -> Result<Html<String>, AppError> {
+    let mut context = Context::new();
+    if let Some(user_id) = &user_state.user_id {
+        // If we're in the POST method, update the worlds before fetching them.
+        if method == Method::POST {
+            let user = get_user(&pool, user_id).await?;
+            let client = get_wa_client_builder(&user.api_key).build()?;
+            let worlds = get_worlds_for_user(&client, &user.worldanvil_id).await?;
+            let worlds = worlds
+                .into_iter()
+                .map(|world| WorldInsert {
+                    worldanvil_id: world.id,
+                    name: world.title,
+                })
+                .collect();
+            upsert_worlds(&pool, user_id, worlds).await?;
+        }
+        let worlds = get_worlds(&pool, user_id).await?;
+        context.insert("worlds", &worlds);
+    }
+    user_state.insert_context(&mut context);
+
+    let html = TEMPLATES.render("home.html", &context)?;
+    Ok(Html(html))
+}
+
+async fn list_articles(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {
+    Ok(Html("Not implemented".to_string()))
+}
+
+async fn list_comments(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {
+    Ok(Html("Not implemented".to_string()))
 }
 
 async fn register_world(
@@ -132,7 +170,7 @@ async fn queue_all_articles(State(pool): State<PgPool>) -> Result<Html<String>, 
     Ok(Html(format!("Queued {len} articles")))
 }
 
-async fn check_session(UserState { user_id }: UserState) -> Result<Html<String>, AppError> {
+async fn check_session(UserState { user_id, .. }: UserState) -> Result<Html<String>, AppError> {
     match user_id {
         Some(id) => Ok(Html(format!("You are user {id}"))),
         None => Ok(Html("You are not logged in".to_string())),
