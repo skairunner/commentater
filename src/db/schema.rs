@@ -112,13 +112,57 @@ pub struct UserQueue {
     pub last_updated: OffsetDateTime,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Serialize)]
+pub struct RawArticleAndStatus {
+    pub article_id: i64,
+    pub title: String,
+    pub url: String,
+    pub last_checked: Option<OffsetDateTime>,
+    pub done: Option<bool>,
+    pub error: Option<bool>,
+    pub error_msg: Option<String>,
+    pub unanswered_comments: Option<i64>,
+}
+
+impl RawArticleAndStatus {
+    pub fn into_article_and_status(self) -> ArticleAndStatus {
+        let RawArticleAndStatus {
+            article_id, title, url, last_checked, done, error, error_msg, unanswered_comments
+        } = self;
+        // If done exists, all the others must exist
+        let status = if done.is_some() {
+            Some(ArticleStatus {
+                done: done.unwrap(),
+                error,
+                error_msg,
+            })
+        } else {
+            None
+        };
+        ArticleAndStatus {
+            article_id,
+            title,
+            url,
+            last_checked,
+            status,
+            unanswered_comments: unanswered_comments.unwrap_or(0),
+        }
+    }
+}
+
+#[derive(Serialize)]
 pub struct ArticleAndStatus {
     pub article_id: i64,
     pub title: String,
     pub url: String,
     pub last_checked: Option<OffsetDateTime>,
+    pub status: Option<ArticleStatus>,
+    pub unanswered_comments: i64,
+}
+
+#[derive(Serialize)]
+pub struct ArticleStatus {
     pub done: bool,
     pub error: Option<bool>,
-    pub error_msg: Option<String>,
+    pub error_msg: Option<String>
 }

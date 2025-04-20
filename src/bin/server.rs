@@ -1,15 +1,16 @@
 use anyhow;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Request, State};
 use axum::http::Method;
-use axum::{response::Html, routing::get, Router};
+use axum::response::{IntoResponse, Redirect, Response};
+use axum::{response::Html, routing::get, Router, ServiceExt};
 use dotenv::dotenv;
 use libtater::auth::UserState;
-use libtater::db::article::{get_article_ids, register_articles};
+use libtater::db::article::{get_article_ids, get_articles_and_status, register_articles};
 use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
 use libtater::db::schema::WorldInsert;
 use libtater::db::user::get_user;
-use libtater::db::world::{get_worlds, upsert_worlds};
+use libtater::db::world::{get_world, get_worlds, upsert_worlds};
 use libtater::err::AppError;
 use libtater::log_config::default_log_config;
 use libtater::req::get_wa_client_builder;
@@ -23,6 +24,8 @@ use std::fs::File;
 use tera::Context;
 use time::Duration;
 use tokio::task::AbortHandle;
+use tower::Layer;
+use tower_http::normalize_path::NormalizePathLayer;
 use tower_sessions::{ExpiredDeletion, Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
 
@@ -84,16 +87,17 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/", get(list_worlds).post(list_worlds))
-        .route("/world/{world_id}/", get(list_articles))
+        .route("/world/{world_id}", get(list_articles))
+        .route("/world/{world_id}/fetch_articles", get(fetch_articles))
         .route("/world/{world_id}/article/{article_id}", get(list_comments))
         .route("/session", get(check_session))
-        .route("/register_world/{world_id}", get(register_world))
         .route("/articles/queue_all", get(queue_all_articles))
         .route("/login", get(login_get).post(login_post))
         .with_state(pool)
         .layer(session_layer);
+    let app = NormalizePathLayer::trim_trailing_slash().layer(app);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080").await?;
-    axum::serve(listener, app)
+    axum::serve(listener, ServiceExt::<Request>::into_make_service(app))
         .with_graceful_shutdown(shutdown_signal(session_deleter.abort_handle()))
         .await?;
 
@@ -133,34 +137,66 @@ async fn list_worlds(
     Ok(Html(html))
 }
 
-async fn list_articles(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {
-    Ok(Html("Not implemented".to_string()))
+/// List the articles for the world.
+async fn list_articles(
+    State(pool): State<PgPool>,
+    Path(world_id): Path<i64>,
+    user_state: UserState,
+) -> Result<Html<String>, AppError> {
+    let mut context = Context::new();
+    user_state.insert_context(&mut context);
+    if let Some(user_id) = &user_state.user_id {
+        let world = get_world(&pool, user_id, &world_id).await
+            .map_err(AppError::from_sql("world", &world_id))?;
+        let articles = get_articles_and_status(user_id, &world_id, &pool).await?;
+        context.insert("world", &world);
+        context.insert("articles", &articles);
+    }
+
+    let html = TEMPLATES.render("list_articles.html", &context)?;
+    Ok(Html(html))
 }
 
 async fn list_comments(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {
     Ok(Html("Not implemented".to_string()))
 }
 
-async fn register_world(
-    Path(world_id): Path<String>,
+async fn fetch_articles(
+    Path(world_id): Path<i64>,
     State(pool): State<PgPool>,
-) -> Result<Html<String>, AppError> {
-    let test_user_token = std::env::var("TEST_USER_KEY").unwrap();
-    let client = get_wa_client_builder(&test_user_token).build()?;
-    // TODO: Filter articles to only get public
-    // Also TODO: Cooldown on re-fetching articles
-    let articles = world_list_articles(&client, &world_id).await?;
+    user_state: UserState,
+) -> Result<Response, AppError> {
+    let mut context = Context::new();
+    user_state.insert_context(&mut context);
+
+    let user_id = match user_state.user_id.clone() {
+        Some(id) => id,
+        None => {
+            let html = TEMPLATES.render("base.html", &context)?;
+            return Ok(Html(html).into_response());
+        }
+    };
+    let user_info = get_user(&pool, &user_id)
+        .await
+        .map_err(AppError::from_sql("user", &user_id))?;
+
+    let world = get_world(&pool, &user_id, &world_id)
+        .await
+        .map_err(AppError::from_sql("world", &world_id))?;
+
+    let client = get_wa_client_builder(&user_info.api_key).build()?;
+    // TODO: Cooldown on re-fetching articles
+    let articles = world_list_articles(&client, &world.worldanvil_id).await?;
     let mut urls = Vec::new();
     let mut titles = Vec::new();
-    articles.iter().for_each(|a| {
-        urls.push(a.url.clone());
-        titles.push(a.title.clone());
+    let mut wa_ids = Vec::new();
+    articles.into_iter().for_each(|a| {
+        urls.push(a.url);
+        titles.push(a.title);
+        wa_ids.push(a.id);
     });
-    register_articles(TEST_USER_ID, TEST_WORLD_ID, &urls, &titles, &pool).await?;
-    let mut context = Context::new();
-    context.insert("articles", &articles);
-    let html = TEMPLATES.render("list_articles.html", &context)?;
-    Ok(Html(html))
+    register_articles(user_id, world.id, &urls, &titles, &wa_ids, &pool).await?;
+    Ok(Redirect::to(&format!("/world/{world_id}/")).into_response())
 }
 
 async fn queue_all_articles(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {

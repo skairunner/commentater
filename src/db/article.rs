@@ -1,5 +1,5 @@
 use crate::db::pgacquire::PgAcquire;
-use crate::db::schema::{Article, ArticleAndStatus};
+use crate::db::schema::{Article, ArticleAndStatus, RawArticleAndStatus};
 
 pub async fn register_article<'a, A: PgAcquire<'a>>(
     user_id: i64,
@@ -26,9 +26,20 @@ pub async fn register_articles<'a, A: PgAcquire<'a>>(
     world_id: i64,
     urls: &[String],
     titles: &[String],
+    worldanvil_ids: &[String],
     conn: A,
 ) -> Result<i64, sqlx::Error> {
     let mut conn = conn.acquire().await?;
+    // Delete articles that no longer exist
+    sqlx::query!(
+        "
+        DELETE FROM article
+        WHERE worldanvil_id <> ANY($1::text[]);
+        ",
+        worldanvil_ids,
+    )
+    .execute(&mut *conn)
+    .await?;
     sqlx::query!(
         "
         INSERT INTO article(user_id, world_id, url, title)
@@ -101,25 +112,38 @@ pub async fn get_articles_and_status<'a, A: PgAcquire<'a>>(
     conn: A,
 ) -> sqlx::Result<Vec<ArticleAndStatus>> {
     let mut conn = conn.acquire().await?;
-    sqlx::query_as!(
-        ArticleAndStatus,
-        "SELECT article.id AS article_id, title, url, last_checked, done, error, error_msg
+    let res = sqlx::query_as!(
+        RawArticleAndStatus,
+        r#"SELECT
+            article.id AS article_id, title, url, last_checked,
+            done as "done?", error as "error?", error_msg as "error_msg?", comments.count as unanswered_comments
         FROM article
-        JOIN (
+        LEFT JOIN (
             SELECT MAX(id) AS id, article_id
             FROM article_queue
             GROUP by article_id
         ) AS max_aq
         ON article.id = max_aq.article_id
-        JOIN (
+        LEFT JOIN (
             SELECT id, done, error, error_msg
             FROM article_queue
         ) AS aq
         ON max_aq.id = aq.id
-        WHERE article.user_id=$1 AND article.world_id=$2;",
+        LEFT JOIN (
+            SELECT COUNT(*) as count, article_id
+            FROM comment
+            GROUP BY article_id
+        ) as comments
+        ON comments.article_id = article.id
+        WHERE article.user_id=$1 AND article.world_id=$2
+        ORDER BY unanswered_comments DESC NULLS LAST"#,
         user_id,
         world_id,
     )
     .fetch_all(&mut *conn)
-    .await
+    .await?
+        .into_iter()
+        .map(|a| a.into_article_and_status())
+        .collect();
+    Ok(res)
 }

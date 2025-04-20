@@ -5,13 +5,32 @@ pub async fn get_worlds<'a, A: PgAcquire<'a>>(conn: A, user_id: &i64) -> sqlx::R
     let mut conn = conn.acquire().await?;
     sqlx::query_as!(
         World,
-        "
-    SELECT id, user_id, worldanvil_id, name
-    FROM world
-    WHERE user_id=$1",
+        "SELECT id, user_id, worldanvil_id, name
+        FROM world
+        WHERE user_id=$1",
         user_id,
     )
     .fetch_all(&mut *conn)
+    .await
+}
+
+pub async fn get_world<'a, A: PgAcquire<'a>>(
+    conn: A,
+    user_id: &i64,
+    world_id: &i64,
+) -> sqlx::Result<World> {
+    let mut conn = conn.acquire().await?;
+    sqlx::query_as!(
+        World,
+        "
+    SELECT id, user_id, worldanvil_id, name
+    FROM world
+    WHERE user_id=$1 AND id=$2
+    LIMIT 1;",
+        user_id,
+        world_id,
+    )
+    .fetch_one(&mut *conn)
     .await
 }
 

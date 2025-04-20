@@ -42,7 +42,7 @@ pub async fn world_list_articles(
         let new_items: Vec<_> = res
             .entities
             .into_iter()
-            .filter(|article| article.state == State::Public)
+            .filter(|article| !article.is_draft)
             .collect();
         items.extend(new_items);
         if done {

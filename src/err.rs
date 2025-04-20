@@ -1,8 +1,6 @@
-use crate::response::AppJsonError;
 use anyhow::Error;
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::response::{Html, IntoResponse, Response};
 use base64;
 use thiserror;
 
@@ -12,6 +10,21 @@ pub enum AppError {
     InternalError(Error),
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("not found")]
+    GenericNotFound,
+    #[error("not found")]
+    NotFound(String, i64),
+}
+
+impl AppError {
+    pub fn from_sql(object: &str, object_id: &i64) -> impl FnOnce(sqlx::Error) -> Self {
+        let o = object.to_string();
+        let i = *object_id;
+        move |e| match e {
+            sqlx::Error::RowNotFound => Self::NotFound(o, i),
+            e => Self::InternalError(e.into()),
+        }
+    }
 }
 
 impl IntoResponse for AppError {
@@ -24,10 +37,19 @@ impl IntoResponse for AppError {
                     "Something went wrong!".to_owned(),
                 )
             }
+            Self::GenericNotFound => (
+                StatusCode::NOT_FOUND,
+                "The object you requested was not found".to_owned(),
+            ),
+            Self::NotFound(o, id) => (StatusCode::NOT_FOUND, format!("{o} {id}")),
             Self::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
         };
 
-        (status, Json(AppJsonError { error: message })).into_response()
+        let reason = status.canonical_reason().unwrap_or("Error");
+        (
+            status,
+            format!("<h1>{reason}</h1><div>{message}</div>"),
+        ).into_response()
     }
 }
 

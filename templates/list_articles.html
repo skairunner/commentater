@@ -1,6 +1,35 @@
 {% extends "base.html" %}
 {% block body %}
 <div>
-    <h1>Commentater</h1>
+    <h1>{{ world.name }}</h1>
+    <form action="/world/{{ world.id }}/fetch_articles">
+        <label for="refetch">Fetch list of articles. Please use sparingly.</label>
+        <button id="refetch">Fetch</button>
+    </form>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Last checked</th>
+            <th>Status</th>
+            <th>Unanswered comments</th>
+        </tr>
+        {% for article in articles %}
+        <tr>
+            <td><a href="/world/{{ world.id }}/article/{{ article.article_id }}">{{ article.title }}</a></td>
+            <td>{{ article.last_checked }}</td>
+            <td>
+                {% if article.status %}
+                {{ article.status.done }}
+                {% if article.status.error == true %}
+                    {{ article.status.error_msg }}
+                {% endif %}
+                {% else %}
+                Unknown
+                {% endif %}
+            </td>
+            <td>{{ article.unanswered_comments }}</td>
+        </tr>
+        {% endfor %}
+    </table>
 </div>
 {% endblock %}
