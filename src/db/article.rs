@@ -81,10 +81,47 @@ pub async fn update_article_content<'a, A: PgAcquire<'a>>(
 pub async fn get_article_ids<'a, A: PgAcquire<'a>>(
     conn: A,
     user_id: &i64,
+    world_id: &i64,
 ) -> sqlx::Result<Vec<i64>> {
     let mut conn = conn.acquire().await?;
-    let result: Vec<(i64,)> = sqlx::query_as("SELECT id FROM article WHERE user_id=$1")
+    let result: Vec<(i64,)> = sqlx::query_as("
+    SELECT id
+    FROM article
+    WHERE user_id=$1 AND world_id=$2
+    ")
         .bind(user_id)
+        .bind(world_id)
+        .fetch_all(&mut *conn)
+        .await?;
+    Ok(result.into_iter().map(|row| row.0).collect())
+}
+
+/// Find all article IDs which are not currently in the job queue
+pub async fn get_unqueued_article_ids<'a, A: PgAcquire<'a>>(
+    conn: A,
+    user_id: &i64,
+    world_id: &i64,
+) -> sqlx::Result<Vec<i64>> {
+    let mut conn = conn.acquire().await?;
+    let result: Vec<(i64,)> = sqlx::query_as("
+        SELECT article.id, article_queue.done
+        FROM article
+        LEFT JOIN (
+            -- Select all of the most recent queue jobs for each article
+            SELECT MAX(id) as id, article_id
+            FROM article_queue
+            WHERE user_id=$1
+            GROUP BY article_id
+        ) as max_aq
+        ON article.id=max_aq.article_id
+        -- Then join on the article status
+        LEFT JOIN article_queue
+        ON article_queue.id=max_aq.id
+        WHERE (article_queue.done is NULL or article_queue.done=true)
+            AND article.user_id=$1 AND article.world_id=$2
+    ")
+        .bind(user_id)
+        .bind(world_id)
         .fetch_all(&mut *conn)
         .await?;
     Ok(result.into_iter().map(|row| row.0).collect())

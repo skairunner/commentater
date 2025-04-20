@@ -1,5 +1,5 @@
 use crate::auth::UserState;
-use crate::db::user::get_user_id_or_insert;
+use crate::db::user::{get_user_id_or_insert, insert_user_queue};
 use crate::err::AppError;
 use crate::req::get_wa_client_builder;
 use crate::templates::TEMPLATES;
@@ -52,6 +52,8 @@ pub async fn login_post(
     };
     // Find the right user id for the api key, or insert it
     let user = get_user_id_or_insert(&pool, &api_key, &info.username, &info.id).await?;
+    // Insert the user into the user queue, if it doesn't exist
+    insert_user_queue(&pool, &user.id).await?;
     // Then update the user's session
     let user_state = UserState {
         user_id: Some(user.id),

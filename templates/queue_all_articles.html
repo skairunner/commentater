@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block body %}
+<div>
+    <p>Queued {{ count }} articles.</p>
+    <p>Note that articles that are already in the queue are not re-queued.</p>
+    <p><a href="/world/{{ world_id }}">Back to article list</a></p>
+</div>
+{% endblock %}

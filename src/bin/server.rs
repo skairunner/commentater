@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{response::Html, routing::get, Router, ServiceExt};
 use dotenv::dotenv;
 use libtater::auth::UserState;
-use libtater::db::article::{get_article_ids, get_articles_and_status, register_articles};
+use libtater::db::article::{get_article_ids, get_articles_and_status, get_unqueued_article_ids, register_articles};
 use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
 use libtater::db::schema::WorldInsert;
@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/world/{world_id}/fetch_articles", get(fetch_articles))
         .route("/world/{world_id}/article/{article_id}", get(list_comments))
         .route("/session", get(check_session))
-        .route("/articles/queue_all", get(queue_all_articles))
+        .route("/world/{world_id}/queue_all", get(queue_all_articles))
         .route("/login", get(login_get).post(login_post))
         .with_state(pool)
         .layer(session_layer);
@@ -157,7 +157,12 @@ async fn list_articles(
     Ok(Html(html))
 }
 
-async fn list_comments(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {
+async fn list_comments(
+    State(pool): State<PgPool>,
+    Path(world_id): Path<i64>,
+    Path(article_id): Path<i64>,
+    user_state: UserState,
+) -> Result<Html<String>, AppError> {
     Ok(Html("Not implemented".to_string()))
 }
 
@@ -199,11 +204,24 @@ async fn fetch_articles(
     Ok(Redirect::to(&format!("/world/{world_id}/")).into_response())
 }
 
-async fn queue_all_articles(State(pool): State<PgPool>) -> Result<Html<String>, AppError> {
-    let article_ids = get_article_ids(&pool, &TEST_USER_ID).await?;
-    insert_tasks(&TEST_USER_ID, &article_ids, &pool).await?;
+async fn queue_all_articles(
+    State(pool): State<PgPool>,
+    Path(world_id): Path<i64>,
+    user_state: UserState,
+) -> Result<Response, AppError> {
+    let mut context = Context::new();
+    user_state.insert_context(&mut context);
+    let user_id = match user_state.user_id {
+        Some(id) => id,
+        None => return Ok(Redirect::to(&format!("/world/{world_id}")).into_response()),
+    };
+    let article_ids = get_unqueued_article_ids(&pool, &user_id, &world_id).await?;
+    insert_tasks(&user_id, &article_ids, &pool).await?;
     let len = article_ids.len();
-    Ok(Html(format!("Queued {len} articles")))
+    context.insert("world_id", &world_id);
+    context.insert("count", &len);
+    let html = TEMPLATES.render("queue_all_articles.html", &context)?;
+    Ok(Html(html).into_response())
 }
 
 async fn check_session(UserState { user_id, .. }: UserState) -> Result<Html<String>, AppError> {
