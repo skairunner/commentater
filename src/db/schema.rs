@@ -127,7 +127,14 @@ pub struct RawArticleAndStatus {
 impl RawArticleAndStatus {
     pub fn into_article_and_status(self) -> ArticleAndStatus {
         let RawArticleAndStatus {
-            article_id, title, url, last_checked, done, error, error_msg, unanswered_comments
+            article_id,
+            title,
+            url,
+            last_checked,
+            done,
+            error,
+            error_msg,
+            unanswered_comments,
         } = self;
         // If done exists, all the others must exist
         let status = if done.is_some() {
@@ -164,5 +171,5 @@ pub struct ArticleAndStatus {
 pub struct ArticleStatus {
     pub done: bool,
     pub error: Option<bool>,
-    pub error_msg: Option<String>
+    pub error_msg: Option<String>,
 }

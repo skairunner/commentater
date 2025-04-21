@@ -46,10 +46,7 @@ impl IntoResponse for AppError {
         };
 
         let reason = status.canonical_reason().unwrap_or("Error");
-        (
-            status,
-            format!("<h1>{reason}</h1><div>{message}</div>"),
-        ).into_response()
+        (status, format!("<h1>{reason}</h1><div>{message}</div>")).into_response()
     }
 }
 

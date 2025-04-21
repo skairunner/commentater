@@ -42,10 +42,7 @@ pub async fn get_user<'a, A: PgAcquire<'a>>(
     .await
 }
 
-pub async fn insert_user_queue<'a, A: PgAcquire<'a>>(
-    conn: A,
-    user_id: &i64,
-) -> sqlx::Result<()> {
+pub async fn insert_user_queue<'a, A: PgAcquire<'a>>(conn: A, user_id: &i64) -> sqlx::Result<()> {
     let mut conn = conn.acquire().await?;
     sqlx::query!(
         "INSERT INTO user_queue(user_id)
@@ -53,7 +50,7 @@ pub async fn insert_user_queue<'a, A: PgAcquire<'a>>(
         ON CONFLICT(user_id) DO NOTHING;",
         user_id,
     )
-        .fetch_one(&mut *conn)
-        .await?;
+    .fetch_one(&mut *conn)
+    .await?;
     Ok(())
 }

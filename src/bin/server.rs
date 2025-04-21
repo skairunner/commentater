@@ -5,7 +5,9 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{response::Html, routing::get, Router, ServiceExt};
 use dotenv::dotenv;
 use libtater::auth::UserState;
-use libtater::db::article::{get_article_ids, get_articles_and_status, get_unqueued_article_ids, register_articles};
+use libtater::db::article::{
+    get_article_ids, get_articles_and_status, get_unqueued_article_ids, register_articles,
+};
 use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
 use libtater::db::schema::WorldInsert;
@@ -146,7 +148,8 @@ async fn list_articles(
     let mut context = Context::new();
     user_state.insert_context(&mut context);
     if let Some(user_id) = &user_state.user_id {
-        let world = get_world(&pool, user_id, &world_id).await
+        let world = get_world(&pool, user_id, &world_id)
+            .await
             .map_err(AppError::from_sql("world", &world_id))?;
         let articles = get_articles_and_status(user_id, &world_id, &pool).await?;
         context.insert("world", &world);

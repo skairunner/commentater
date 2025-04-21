@@ -1,4 +1,4 @@
-use crate::db::article::{get_article, update_article_content};
+use crate::db::article::{get_article, set_article_checked_time, update_article_content};
 use crate::db::comments::{delete_comments, insert_comments};
 use crate::db::query::update_wa_users;
 use crate::db::queue::{complete_task, get_next_task, get_next_user, update_user_queue};
@@ -162,6 +162,7 @@ pub async fn update_task(mut tx: sqlx::Transaction<'_, Postgres>) -> anyhow::Res
         Ok(TaskOutcome::Completed) => {
             // Mark task as complete, user as touched
             inner_tx.commit().await?;
+            set_article_checked_time(&task.user_id, &task.article_id, &mut tx).await?;
             complete_task(task.id, None, &mut tx).await?;
             update_user_queue(&user_queue_entry.id, &mut tx).await?;
         }
@@ -171,7 +172,6 @@ pub async fn update_task(mut tx: sqlx::Transaction<'_, Postgres>) -> anyhow::Res
             inner_tx.rollback().await?;
         }
     }
-
     tx.commit().await?;
     Ok(TaskOutcome::Completed)
 }
