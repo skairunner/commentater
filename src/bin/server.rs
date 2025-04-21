@@ -5,21 +5,18 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::{response::Html, routing::get, Router, ServiceExt};
 use dotenv::dotenv;
 use libtater::auth::UserState;
-use libtater::db::article::{
-    get_article_details, get_articles_and_status, get_unqueued_article_ids, register_articles,
-};
-use libtater::db::comments::get_comments;
+use libtater::db::article::get_articles_and_status;
 use libtater::db::get_connection_options;
-use libtater::db::queue::insert_tasks;
 use libtater::db::schema::WorldInsert;
 use libtater::db::user::get_user;
 use libtater::db::world::{get_world, get_worlds, upsert_worlds};
 use libtater::err::AppError;
 use libtater::log_config::default_log_config;
 use libtater::req::get_wa_client_builder;
+use libtater::routes::article;
 use libtater::routes::login::{login_get, login_post};
 use libtater::templates::TEMPLATES;
-use libtater::worldanvil_api::{get_worlds_for_user, world_list_articles};
+use libtater::worldanvil_api::get_worlds_for_user;
 use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
 use std::fs::File;
@@ -90,10 +87,19 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", get(list_worlds).post(list_worlds))
         .route("/world/{world_id}", get(list_articles))
-        .route("/world/{world_id}/fetch_articles", get(fetch_articles))
-        .route("/world/{world_id}/article/{article_id}", get(list_comments))
+        .route(
+            "/world/{world_id}/fetch_articles",
+            get(article::fetch_articles),
+        )
+        .route(
+            "/world/{world_id}/article/{article_id}",
+            get(article::list_comments),
+        )
         .route("/session", get(check_session))
-        .route("/world/{world_id}/queue_all", get(queue_all_articles))
+        .route(
+            "/world/{world_id}/queue_all",
+            get(article::queue_all_articles),
+        )
         .route("/login", get(login_get).post(login_post))
         .with_state(pool)
         .layer(session_layer);
@@ -161,89 +167,6 @@ async fn list_articles(
     }
 
     let html = TEMPLATES.render("list_articles.html", &context)?;
-    Ok(Html(html).into_response())
-}
-
-async fn list_comments(
-    State(pool): State<PgPool>,
-    Path((world_id, article_id)): Path<(i64, i64)>,
-    user_state: UserState,
-) -> Result<Response, AppError> {
-    let user_id = match user_state.user_id.clone() {
-        Some(id) => id,
-        None => return Ok(Redirect::to("/login").into_response()),
-    };
-    let mut context = Context::new();
-    user_state.insert_context(&mut context);
-    let world = get_world(&pool, &user_id, &world_id).await?;
-    context.insert("world", &world);
-    let article = get_article_details(&pool, &article_id, &user_id).await?;
-    context.insert("article", &article);
-    let comments = get_comments(&pool, article_id, user_id).await?;
-    context.insert("comments", &comments);
-    let html = TEMPLATES.render("article.html", &context)?;
-    Ok(Html(html).into_response())
-}
-
-async fn fetch_articles(
-    Path(world_id): Path<i64>,
-    State(pool): State<PgPool>,
-    user_state: UserState,
-) -> Result<Response, AppError> {
-    if user_state.user_id.is_none() {
-        return Ok(Redirect::to("/login").into_response());
-    }
-
-    let mut context = Context::new();
-    user_state.insert_context(&mut context);
-
-    let user_id = match user_state.user_id.clone() {
-        Some(id) => id,
-        None => {
-            let html = TEMPLATES.render("base.html", &context)?;
-            return Ok(Html(html).into_response());
-        }
-    };
-    let user_info = get_user(&pool, &user_id)
-        .await
-        .map_err(AppError::from_sql("user", &user_id))?;
-
-    let world = get_world(&pool, &user_id, &world_id)
-        .await
-        .map_err(AppError::from_sql("world", &world_id))?;
-
-    let client = get_wa_client_builder(&user_info.api_key).build()?;
-    // TODO: Cooldown on re-fetching articles
-    let articles = world_list_articles(&client, &world.worldanvil_id).await?;
-    let mut urls = Vec::new();
-    let mut titles = Vec::new();
-    let mut wa_ids = Vec::new();
-    articles.into_iter().for_each(|a| {
-        urls.push(a.url);
-        titles.push(a.title);
-        wa_ids.push(a.id);
-    });
-    register_articles(user_id, world.id, &urls, &titles, &wa_ids, &pool).await?;
-    Ok(Redirect::to(&format!("/world/{world_id}/")).into_response())
-}
-
-async fn queue_all_articles(
-    State(pool): State<PgPool>,
-    Path(world_id): Path<i64>,
-    user_state: UserState,
-) -> Result<Response, AppError> {
-    let mut context = Context::new();
-    user_state.insert_context(&mut context);
-    let user_id = match user_state.user_id {
-        Some(id) => id,
-        None => return Ok(Redirect::to(&format!("/world/{world_id}")).into_response()),
-    };
-    let article_ids = get_unqueued_article_ids(&pool, &user_id, &world_id).await?;
-    insert_tasks(&user_id, &article_ids, &pool).await?;
-    let len = article_ids.len();
-    context.insert("world_id", &world_id);
-    context.insert("count", &len);
-    let html = TEMPLATES.render("queue_all_articles.html", &context)?;
     Ok(Html(html).into_response())
 }
 
