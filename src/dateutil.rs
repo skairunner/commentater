@@ -18,3 +18,13 @@ pub fn date_as_human_friendly<S: Serializer>(
         .map_err(|e| serde::ser::Error::custom(format!("{e:?}")))?;
     s.serialize_str(&datestr)
 }
+
+pub fn date_option_as_human_friendly<S: Serializer>(
+    date: &Option<OffsetDateTime>,
+    s: S,
+) -> Result<S::Ok, S::Error> {
+    match date {
+        Some(date) => date_as_human_friendly(date, s),
+        None => s.serialize_str(""),
+    }
+}

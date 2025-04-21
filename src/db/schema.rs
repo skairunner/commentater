@@ -1,4 +1,4 @@
-use crate::dateutil::date_as_human_friendly;
+use crate::dateutil::{date_as_human_friendly, date_option_as_human_friendly};
 use serde::Serialize;
 use sqlx;
 use sqlx::FromRow;
@@ -177,6 +177,7 @@ pub struct ArticleAndStatus {
     pub article_id: i64,
     pub title: String,
     pub url: String,
+    #[serde(serialize_with = "date_option_as_human_friendly")]
     pub last_checked: Option<OffsetDateTime>,
     pub status: Option<ArticleStatus>,
     pub unanswered_comments: i64,

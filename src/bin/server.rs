@@ -2,6 +2,7 @@ use anyhow;
 use axum::extract::{Path, Request, State};
 use axum::http::Method;
 use axum::response::{IntoResponse, Redirect, Response};
+use axum::routing::post;
 use axum::{response::Html, routing::get, Router, ServiceExt};
 use dotenv::dotenv;
 use libtater::auth::UserState;
@@ -94,6 +95,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/world/{world_id}/article/{article_id}",
             get(article::list_comments),
+        )
+        .route(
+            "/world/{world_id}/article/{article_id}/enqueue",
+            post(article::queue_one_article),
         )
         .route("/session", get(check_session))
         .route(

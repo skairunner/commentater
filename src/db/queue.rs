@@ -1,6 +1,6 @@
 use crate::db::pgacquire::PgAcquire;
 use crate::db::schema::{ArticleQueueEntry, UserQueue};
-use sqlx::Postgres;
+use sqlx::{PgConnection, Postgres};
 
 /// Lock a user for work
 pub async fn get_next_user(
@@ -35,12 +35,11 @@ pub async fn update_user_queue(
     Ok(())
 }
 
-pub async fn insert_tasks<'a, A: PgAcquire<'a>>(
+pub async fn insert_tasks(
     user_id: &i64,
     article_ids: &[i64],
-    conn: A,
+    conn: &mut PgConnection,
 ) -> sqlx::Result<()> {
-    let mut conn = conn.acquire().await?;
     sqlx::query!(
         "INSERT INTO article_queue(user_id, article_id)
         SELECT $1, *
@@ -70,6 +69,25 @@ pub async fn get_next_task(
     )
     .fetch_optional(&mut **tx)
     .await
+}
+
+/// Return true if there is a pending task for the article
+pub async fn article_is_queued(
+    user_id: &i64,
+    article_id: &i64,
+    conn: &mut PgConnection,
+) -> sqlx::Result<bool> {
+    let res = sqlx::query!(
+        "SELECT id
+        FROM article_queue
+        WHERE done <> true AND user_id=$1 AND article_id=$2
+        LIMIT 1",
+        user_id,
+        article_id,
+    )
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(res.is_some())
 }
 
 /// Mark a task as done

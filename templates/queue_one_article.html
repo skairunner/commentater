@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+<div>
+    {% if already_queued %}
+    <p>Article is already queued. Doing nothing.</p>
+    {% else %}
+    <p>Queued article!</p>
+    {% endif %}
+    <form method="get" action="./">
+        <button>Back</button>
+    </form>
+</div>
+{% endblock %}
