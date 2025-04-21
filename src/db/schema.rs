@@ -1,3 +1,4 @@
+use crate::dateutil::date_as_human_friendly;
 use serde::Serialize;
 use sqlx;
 use sqlx::FromRow;
@@ -42,13 +43,26 @@ pub struct WorldInsert {
     pub name: String,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Serialize)]
 pub struct Article {
     pub id: i64,
     pub user_id: i64,
     pub world_id: i64,
     pub url: String,
+    #[serde(with = "time::serde::iso8601::option")]
     pub last_checked: Option<OffsetDateTime>,
+}
+
+#[derive(FromRow, Serialize)]
+pub struct ArticleDetails {
+    pub id: i64,
+    pub user_id: i64,
+    pub world_id: i64,
+    pub url: String,
+    #[serde(with = "time::serde::iso8601::option")]
+    pub last_checked: Option<OffsetDateTime>,
+    pub title: String,
+    pub worldanvil_id: Option<String>,
 }
 
 #[derive(FromRow)]
@@ -59,13 +73,14 @@ pub struct ArticleContent {
     pub title: String,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Serialize)]
 pub struct Comment {
     pub id: i64,
     pub user_id: i64,
     pub author_id: Option<i64>,
     pub article_id: i64,
     pub content: String,
+    #[serde(serialize_with = "date_as_human_friendly")]
     pub date: OffsetDateTime,
     pub starred: bool,
     pub deleted: bool,

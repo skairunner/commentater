@@ -1,5 +1,5 @@
 use crate::db::pgacquire::PgAcquire;
-use crate::db::schema::{Article, ArticleAndStatus, RawArticleAndStatus};
+use crate::db::schema::{Article, ArticleAndStatus, ArticleDetails, RawArticleAndStatus};
 
 pub async fn register_article<'a, A: PgAcquire<'a>>(
     user_id: i64,
@@ -140,6 +140,25 @@ pub async fn get_article<'a, A: PgAcquire<'a>>(
     sqlx::query_as!(
         Article,
         "SELECT id, user_id, world_id, url, last_checked FROM article WHERE id=$1 AND user_id=$2;",
+        article_id,
+        user_id,
+    )
+    .fetch_one(&mut *conn)
+    .await
+}
+
+pub async fn get_article_details<'a, A: PgAcquire<'a>>(
+    conn: A,
+    article_id: &i64,
+    user_id: &i64,
+) -> sqlx::Result<ArticleDetails> {
+    let mut conn = conn.acquire().await?;
+    sqlx::query_as!(
+        ArticleDetails,
+        "SELECT id, user_id, world_id, url, last_checked, worldanvil_id, title
+        FROM article
+        WHERE id=$1 AND user_id=$2
+        LIMIT 1",
         article_id,
         user_id,
     )

@@ -6,8 +6,9 @@ use axum::{response::Html, routing::get, Router, ServiceExt};
 use dotenv::dotenv;
 use libtater::auth::UserState;
 use libtater::db::article::{
-    get_article_ids, get_articles_and_status, get_unqueued_article_ids, register_articles,
+    get_article_details, get_articles_and_status, get_unqueued_article_ids, register_articles,
 };
+use libtater::db::comments::get_comments;
 use libtater::db::get_connection_options;
 use libtater::db::queue::insert_tasks;
 use libtater::db::schema::WorldInsert;
@@ -19,7 +20,6 @@ use libtater::req::get_wa_client_builder;
 use libtater::routes::login::{login_get, login_post};
 use libtater::templates::TEMPLATES;
 use libtater::worldanvil_api::{get_worlds_for_user, world_list_articles};
-use libtater::{TEST_USER_ID, TEST_WORLD_ID};
 use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
 use std::fs::File;
@@ -144,7 +144,11 @@ async fn list_articles(
     State(pool): State<PgPool>,
     Path(world_id): Path<i64>,
     user_state: UserState,
-) -> Result<Html<String>, AppError> {
+) -> Result<Response, AppError> {
+    if user_state.user_id.is_none() {
+        return Ok(Redirect::to("/login").into_response());
+    }
+
     let mut context = Context::new();
     user_state.insert_context(&mut context);
     if let Some(user_id) = &user_state.user_id {
@@ -157,16 +161,28 @@ async fn list_articles(
     }
 
     let html = TEMPLATES.render("list_articles.html", &context)?;
-    Ok(Html(html))
+    Ok(Html(html).into_response())
 }
 
 async fn list_comments(
     State(pool): State<PgPool>,
-    Path(world_id): Path<i64>,
-    Path(article_id): Path<i64>,
+    Path((world_id, article_id)): Path<(i64, i64)>,
     user_state: UserState,
-) -> Result<Html<String>, AppError> {
-    Ok(Html("Not implemented".to_string()))
+) -> Result<Response, AppError> {
+    let user_id = match user_state.user_id.clone() {
+        Some(id) => id,
+        None => return Ok(Redirect::to("/login").into_response()),
+    };
+    let mut context = Context::new();
+    user_state.insert_context(&mut context);
+    let world = get_world(&pool, &user_id, &world_id).await?;
+    context.insert("world", &world);
+    let article = get_article_details(&pool, &article_id, &user_id).await?;
+    context.insert("article", &article);
+    let comments = get_comments(&pool, article_id, user_id).await?;
+    context.insert("comments", &comments);
+    let html = TEMPLATES.render("article.html", &context)?;
+    Ok(Html(html).into_response())
 }
 
 async fn fetch_articles(
@@ -174,6 +190,10 @@ async fn fetch_articles(
     State(pool): State<PgPool>,
     user_state: UserState,
 ) -> Result<Response, AppError> {
+    if user_state.user_id.is_none() {
+        return Ok(Redirect::to("/login").into_response());
+    }
+
     let mut context = Context::new();
     user_state.insert_context(&mut context);
 

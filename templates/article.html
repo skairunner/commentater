@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block header %}
+<style>
+  td {
+    border-bottom: 1px solid black;
+  }
+  th, td {
+    padding: 0.5rem;
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div>
+  <h1><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h1>
+  <h2>in <a href="/world/{{ world.id }}">{{ world.name }}</a></h2>
+  <div>Last checked: {{ article.last_checked }}</div>
+  <div>Unanswered comments: {{ comments | length }}</div>
+  {% if comments %}
+  <table style="border-collapse: collapse;">
+    <tr>
+      <th>Comment</th>
+      <th>Date</th>
+    </tr>
+    {% for comment in comments %}
+    <tr>
+      <td>{{ comment.content }}</td>
+      <td>{{ comment.date }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div>Horray! All your comments have been answered.</div>
+  {% endif %}
+</div>
+{% endblock %}

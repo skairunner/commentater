@@ -1,7 +1,16 @@
 {% extends "base.html" %}
+{% block header %}
+<style>
+    th, td {
+        border: 1px solid black;
+        padding: 0.4rem 0.5rem;
+    }
+</style>
+{% endblock %}
 {% block body %}
 <div>
     <h1>{{ world.name }}</h1>
+    <div><a href="/">Back to world overview</a></div>
     <form action="/world/{{ world.id }}/fetch_articles">
         <label for="refetch">Fetch list of articles. Please use sparingly.</label>
         <button id="refetch">Fetch</button>
@@ -10,7 +19,7 @@
         <label for="queue_all">Queue all articles for update</label>
         <button id="queue_all">Queue all</button>
     </form>
-    <table>
+    <table style="border-collapse: collapse;">
         <tr>
             <th>Name</th>
             <th>Last checked</th>
@@ -23,13 +32,12 @@
             <td>{{ article.last_checked }}</td>
             <td>
                 {% if article.status %}
-                    {% if article.status.done %}
-                        Checked
-                    {% else %}
-                        Queued
-                    {% endif %}
                     {% if article.status.error == true %}
-                        {{ article.status.error_msg }}
+                    <span style="color: red">Error: {{ article.status.error_msg }}</span>
+                    {% elif article.status.done %}
+                    Checked
+                    {% else %}
+                    Queued
                     {% endif %}
                 {% else %}
                 Unknown
