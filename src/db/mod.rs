@@ -17,4 +17,5 @@ pub fn get_connection_options() -> PgConnectOptions {
         .port(5432)
         .username(&envvar("DATABASE_USER").ok().unwrap())
         .password(&envvar("DATABASE_PASSWORD").ok().unwrap())
+        .database(&envvar("DATABASE_DB").ok().unwrap())
 }
