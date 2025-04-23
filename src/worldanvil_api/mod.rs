@@ -61,7 +61,11 @@ pub async fn get_user_identity(client: &reqwest::Client) -> anyhow::Result<Ident
         StatusCode::UNAUTHORIZED => Ok(IdentityResult::NotIdentified(
             res.json::<ErrorBody>().await?,
         )),
-        _ => Err(res.error_for_status().unwrap_err().into()),
+        _ => {
+            let err = res.error_for_status_ref().unwrap_err();
+            let text = res.text().await?;
+            Err(err).context(format!("Body: {text}"))
+        },
     }
 }
 
