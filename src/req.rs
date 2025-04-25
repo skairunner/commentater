@@ -1,13 +1,12 @@
 use crate::err::AppError;
-use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT_LANGUAGE, HOST};
 use reqwest::{Client, ClientBuilder, Url};
 use std::env;
 
 static USER_AGENT: &str = concat!(
-    "commentater",
-    "/",
+    "commentater (commentater.skye.im, ",
     env!("CARGO_PKG_VERSION"),
-    " Managed by skairunner on Discord"
+    ")"
 );
 
 /// Get a new clientbuilder with user agent header set.
@@ -23,6 +22,10 @@ pub fn get_wa_client_builder(user_key: &str) -> ClientBuilder {
         HeaderValue::from_str(&env::var("WORLDANVIL_APPLICATION_KEY").unwrap()).unwrap(),
     );
     headers.insert("x-auth-token", HeaderValue::from_str(user_key).unwrap());
+    headers.insert(
+        HOST,
+        HeaderValue::from_str("www.worldanvil.com").unwrap()
+    );
     get_client_builder().default_headers(headers)
 }
 
