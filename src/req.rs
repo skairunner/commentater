@@ -22,10 +22,7 @@ pub fn get_wa_client_builder(user_key: &str) -> ClientBuilder {
         HeaderValue::from_str(&env::var("WORLDANVIL_APPLICATION_KEY").unwrap()).unwrap(),
     );
     headers.insert("x-auth-token", HeaderValue::from_str(user_key).unwrap());
-    headers.insert(
-        HOST,
-        HeaderValue::from_str("www.worldanvil.com").unwrap()
-    );
+    headers.insert(HOST, HeaderValue::from_str("www.worldanvil.com").unwrap());
     get_client_builder().default_headers(headers)
 }
 

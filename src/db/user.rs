@@ -50,7 +50,7 @@ pub async fn insert_user_queue<'a, A: PgAcquire<'a>>(conn: A, user_id: &i64) -> 
         ON CONFLICT(user_id) DO NOTHING;",
         user_id,
     )
-    .fetch_one(&mut *conn)
+    .execute(&mut *conn)
     .await?;
     Ok(())
 }
