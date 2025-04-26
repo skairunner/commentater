@@ -2,6 +2,39 @@
 <html lang="en">
 <head>
     <title>Commentater</title>
+    <style>
+        body {
+            background: #eeddcc;
+            font-family: "Open Sans", sans-serif;
+        }
+
+        .main {
+            max-width: 800px;
+             margin: auto;
+        }
+
+        a.buttony {
+            padding: 5px 2em;
+            outline: 2px solid #695246;
+            border-radius: 1em;
+            font-weight: bold;
+            text-decoration: none;
+            color: #695246;
+        }
+
+        a.buttony:hover {
+            outline: 2px solid #c79d73;
+        }
+
+        #header {
+            text-align: right;
+        }
+
+        h1 {
+            font-size: 4em;
+            margin-bottom: 0;
+        }
+    </style>
     {% block header %}
     {% endblock %}
 </head>
@@ -13,7 +46,9 @@
         <a href="/login">Login</a>
         {% endif %}
     </div>
+    <div class="main">
     {% block body %}
     {% endblock %}
+    </div>
 </body>
 </html>

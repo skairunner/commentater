@@ -1,8 +1,15 @@
 {% extends "base.html" %}
+{% block header %}
+<style>
+    .desc {
+        margin-bottom: 2em;
+    }
+</style>
+{% endblock %}
 {% block body %}
 <div>
     <h1>Commentater</h1>
-    <div>Commentater is a comment management helper. It lets you know which of your articles have comments you have not responded to.</div>
+    <div class="desc">peeling through your worlds for comments you haven't responded to</div>
     {% if logged_in %}
     <ul>
     {% for world in worlds %}
@@ -13,7 +20,7 @@
         <button type="submit">Refresh worlds</button>
     </form>
     {% else %}
-    <a href="/login">Login to start.</a>
+    <a class="buttony" href="/login">Login to start.</a>
     {% endif %}
 </div>
 {% endblock %}
