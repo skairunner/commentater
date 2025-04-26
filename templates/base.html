@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Commentater</title>
+    <title>{% block title%}Commentater{% endblock %}</title>
+    <link rel="icon" type="image/png" href="/static/favicon.svg">
     <style>
         body {
             background: #eeddcc;
@@ -13,16 +14,18 @@
              margin: auto;
         }
 
-        a.buttony {
+        a.buttony, button {
+            background: none;
             padding: 5px 2em;
             outline: 2px solid #695246;
+            border: none;
             border-radius: 1em;
             font-weight: bold;
             text-decoration: none;
             color: #695246;
         }
 
-        a.buttony:hover {
+        a.buttony:hover, button:hover {
             outline: 2px solid #c79d73;
         }
 
@@ -33,6 +36,14 @@
         h1 {
             font-size: 4em;
             margin-bottom: 0;
+        }
+
+        .desc {
+            margin-bottom: 2em;
+        }
+
+        div.spaced {
+            margin-bottom: 1rem;
         }
     </style>
     {% block header %}

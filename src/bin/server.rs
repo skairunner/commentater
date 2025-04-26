@@ -26,6 +26,7 @@ use time::Duration;
 use tokio::task::AbortHandle;
 use tower::Layer;
 use tower_http::normalize_path::NormalizePathLayer;
+use tower_http::services::ServeDir;
 use tower_sessions::{ExpiredDeletion, Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
 
@@ -106,6 +107,7 @@ async fn main() -> anyhow::Result<()> {
             get(article::queue_all_articles),
         )
         .route("/login", get(login_get).post(login_post))
+        .nest_service("/static", ServeDir::new("static"))
         .with_state(pool)
         .layer(session_layer);
     let app = NormalizePathLayer::trim_trailing_slash().layer(app);

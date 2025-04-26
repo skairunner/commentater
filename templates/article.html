@@ -9,15 +9,18 @@
   }
 </style>
 {% endblock %}
+{% block title %}
+{{ article.title }} | Commentater
+{% endblock %}
 {% block body %}
 <div>
   <h1><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h1>
   <h2>in <a href="/world/{{ world.id }}">{{ world.name }}</a></h2>
-  <div>Last checked: {{ article.last_checked }}</div>
-  <div><form method="post" action="/world/{{ world.id }}/article/{{article.id}}/enqueue">
+  <div class="spaced">Last checked: {{ article.last_checked }}</div>
+  <div class="spaced"><form method="post" action="/world/{{ world.id }}/article/{{article.id}}/enqueue">
     <button>Queue for checking</button>
   </form></div>
-  <div>Unanswered comments: {{ comments | length }}</div>
+  <div class="spaced">Unanswered comments: {{ comments | length }}</div>
   {% if comments %}
   <table style="border-collapse: collapse;">
     <tr>

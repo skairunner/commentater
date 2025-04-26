@@ -7,17 +7,24 @@
     }
 </style>
 {% endblock %}
+{% block title %}
+{{ world.name }} | Commentater
+{% endblock %}
 {% block body %}
 <div>
     <h1>{{ world.name }}</h1>
-    <div><a href="/">Back to world overview</a></div>
+    <div class="spaced"><a href="/">Back to world overview</a></div>
     <form action="/world/{{ world.id }}/fetch_articles">
-        <label for="refetch">Fetch list of articles. Please use sparingly.</label>
-        <button id="refetch">Fetch</button>
+        <div class="spaced">
+            <label for="refetch">Fetch list of articles. Please use sparingly.</label>
+            <button id="refetch">Fetch</button>
+        </div>
     </form>
     <form action="/world/{{ world.id }}/queue_all">
-        <label for="queue_all">Queue all articles for update</label>
-        <button id="queue_all">Queue all</button>
+        <div class="spaced">
+            <label for="queue_all">Queue all articles for update</label>
+            <button id="queue_all">Queue all</button>
+        </div>
     </form>
     <table style="border-collapse: collapse;">
         <tr>
