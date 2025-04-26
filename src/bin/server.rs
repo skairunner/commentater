@@ -20,7 +20,7 @@ use libtater::templates::TEMPLATES;
 use libtater::worldanvil_api::get_worlds_for_user;
 use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use tera::Context;
 use time::Duration;
 use tokio::task::AbortHandle;
@@ -58,6 +58,10 @@ async fn shutdown_signal(deletion_task_abort_handle: AbortHandle) {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
+    let log_file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open("log/server.log")?;
     CombinedLogger::init(vec![
         TermLogger::new(
             simplelog::LevelFilter::Info,
@@ -65,11 +69,7 @@ async fn main() -> anyhow::Result<()> {
             Default::default(),
             Default::default(),
         ),
-        WriteLogger::new(
-            simplelog::LevelFilter::Info,
-            Default::default(),
-            File::create("log/server.log").unwrap(),
-        ),
+        WriteLogger::new(simplelog::LevelFilter::Info, Default::default(), log_file),
     ])?;
 
     let pool = PgPool::connect_with(get_connection_options()).await?;

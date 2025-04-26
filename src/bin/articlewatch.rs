@@ -5,11 +5,16 @@ use libtater::article_updater::{update_task, TaskError, TaskOutcome};
 use libtater::db::get_connection_options;
 use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
+    let log_file = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open("log/articlewatch.log")?;
+
     CombinedLogger::init(vec![
         TermLogger::new(
             simplelog::LevelFilter::Info,
@@ -17,11 +22,7 @@ async fn main() -> anyhow::Result<()> {
             Default::default(),
             Default::default(),
         ),
-        WriteLogger::new(
-            simplelog::LevelFilter::Info,
-            Default::default(),
-            File::create("log/articlewatch.log").unwrap(),
-        ),
+        WriteLogger::new(simplelog::LevelFilter::Info, Default::default(), log_file),
     ])?;
     let pool = PgPool::connect_with(get_connection_options()).await?;
     loop {
