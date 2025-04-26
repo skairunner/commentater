@@ -8,6 +8,7 @@ use dotenv::dotenv;
 use libtater::auth::UserState;
 use libtater::db::article::get_articles_and_status;
 use libtater::db::get_connection_options;
+use libtater::db::queue::get_queue_length;
 use libtater::db::schema::WorldInsert;
 use libtater::db::user::get_user;
 use libtater::db::world::{get_world, get_worlds, upsert_worlds};
@@ -133,6 +134,8 @@ async fn list_worlds(
         context.insert("worlds", &worlds);
     }
     user_state.insert_context(&mut context);
+    let queue_length = get_queue_length(&mut *pool.acquire().await?).await?;
+    context.insert("queue_length", &queue_length);
 
     let html = TEMPLATES.render("home.html", &context)?;
     Ok(Html(html))
@@ -150,6 +153,9 @@ async fn list_articles(
 
     let mut context = Context::new();
     user_state.insert_context(&mut context);
+    let queue_length = get_queue_length(&mut *pool.acquire().await?).await?;
+    context.insert("queue_length", &queue_length);
+
     if let Some(user_id) = &user_state.user_id {
         let world = get_world(&pool, user_id, &world_id)
             .await

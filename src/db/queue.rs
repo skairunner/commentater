@@ -1,6 +1,8 @@
 use crate::db::pgacquire::PgAcquire;
 use crate::db::schema::{ArticleQueueEntry, UserQueue};
-use sqlx::{PgConnection, Postgres};
+use influxdb::InfluxDbWriteable;
+use sqlx::{FromRow, PgConnection, Postgres};
+use time::OffsetDateTime;
 
 /// Lock a user for work.
 /// It has to be a user which has at least one task ready.
@@ -130,6 +132,25 @@ pub async fn complete_task(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+#[derive(FromRow)]
+struct ArticleQueueInfo {
+    queue_length: i64,
+}
+
+pub async fn get_queue_length(conn: &mut PgConnection) -> sqlx::Result<i64> {
+    let res = sqlx::query_as!(
+        ArticleQueueInfo,
+        r#"
+        SELECT COUNT(*) as "queue_length!"
+        FROM article_queue
+        WHERE done <> true;
+        "#
+    )
+    .fetch_one(conn)
+    .await?;
+    Ok(res.queue_length)
 }
 
 #[cfg(test)]

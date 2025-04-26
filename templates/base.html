@@ -30,7 +30,8 @@
         }
 
         #header {
-            text-align: right;
+            display: flex;
+            justify-content: space-between;
         }
 
         h1 {
@@ -51,11 +52,18 @@
 </head>
 <body>
     <div id="header">
-        {% if logged_in %}
-        Logged in as {{ username }}
-        {% else %}
-        <a href="/login">Login</a>
-        {% endif %}
+        <div id="queueinfo">
+            {% if queue_length %}
+            {{ queue_length }} articles in queue
+            {% endif %}
+        </div>
+        <div id="userinfo">
+            {% if logged_in %}
+            Logged in as {{ username }}
+            {% else %}
+            <a href="/login">Login</a>
+            {% endif %}
+        </div>
     </div>
     <div class="main">
     {% block body %}
