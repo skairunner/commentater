@@ -6,16 +6,18 @@ pub async fn register_article<'a, A: PgAcquire<'a>>(
     user_id: i64,
     world_id: i64,
     url: &str,
+    title: &str,
     conn: A,
 ) -> Result<i64, sqlx::Error> {
     let mut conn = conn.acquire().await?;
     sqlx::query!(
-        "INSERT INTO article(user_id, world_id, url)
-   VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+        "INSERT INTO article(user_id, world_id, url, title)
+   VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
    RETURNING id;",
         user_id,
         world_id,
-        url
+        url,
+        title,
     )
     .fetch_one(&mut *conn)
     .await

@@ -38,7 +38,7 @@ pub async fn upsert_worlds<'a, A: PgAcquire<'a>>(
     conn: A,
     user_id: &i64,
     worlds: Vec<WorldInsert>,
-) -> sqlx::Result<()> {
+) -> sqlx::Result<Vec<i64>> {
     let mut conn = conn.acquire().await?;
     let mut world_ids = Vec::new();
     let mut world_names = Vec::new();
@@ -61,18 +61,19 @@ pub async fn upsert_worlds<'a, A: PgAcquire<'a>>(
     )
     .execute(&mut *conn)
     .await?;
-    sqlx::query!(
+    let returning = sqlx::query!(
         "
         INSERT INTO world(user_id, worldanvil_id, name)
         SELECT $1, * FROM UNNEST($2::text[], $3::text[])
         ON CONFLICT (user_id, worldanvil_id) DO UPDATE SET
-            name=EXCLUDED.name;
+            name=EXCLUDED.name
+        RETURNING id;
         ",
         user_id,
         &world_ids,
         &world_names,
     )
-    .execute(&mut *conn)
+    .fetch_all(&mut *conn)
     .await?;
-    Ok(())
+    Ok(returning.into_iter().map(|record| record.id).collect())
 }

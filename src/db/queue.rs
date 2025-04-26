@@ -2,17 +2,24 @@ use crate::db::pgacquire::PgAcquire;
 use crate::db::schema::{ArticleQueueEntry, UserQueue};
 use sqlx::{PgConnection, Postgres};
 
-/// Lock a user for work
+/// Lock a user for work.
+/// It has to be a user which has at least one task ready.
 pub async fn get_next_user(
     tx: &mut sqlx::Transaction<'_, Postgres>,
 ) -> sqlx::Result<Option<UserQueue>> {
     sqlx::query_as!(
         UserQueue,
-        "SELECT id, user_id, last_updated
+        "SELECT user_queue.id, user_queue.user_id, user_queue.last_updated
         FROM user_queue
+        JOIN (
+            SELECT DISTINCT user_id
+            FROM article_queue
+            WHERE done <> true
+        ) as aq
+        ON user_queue.user_id = aq.user_id
         WHERE last_updated < NOW() - interval '2 seconds'
         ORDER BY last_updated ASC
-        FOR UPDATE SKIP LOCKED
+        FOR UPDATE OF user_queue SKIP LOCKED
         LIMIT 1;"
     )
     .fetch_optional(&mut **tx)
@@ -31,6 +38,24 @@ pub async fn update_user_queue(
         id,
     )
     .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+async fn update_user_queue_to(
+    id: &i64,
+    interval: &sqlx::postgres::types::PgInterval,
+    conn: &mut PgConnection,
+) -> sqlx::Result<()> {
+    sqlx::query_as!(
+        UserQueue,
+        "UPDATE user_queue
+        SET last_updated = NOW() - $2::interval
+        WHERE id = $1;",
+        id,
+        interval,
+    )
+    .execute(&mut *conn)
     .await?;
     Ok(())
 }
@@ -105,4 +130,69 @@ pub async fn complete_task(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::article::register_article;
+    use crate::db::schema::WorldInsert;
+    use crate::db::user::{get_user_id_or_insert, insert_user_queue};
+    use crate::db::world::{get_world, upsert_worlds};
+    use sqlx::postgres::types::PgInterval;
+    use sqlx::{Acquire, PgPool};
+
+    /// Ensure that users are only selected for update if they have at least one queue entry.
+    #[sqlx::test]
+    async fn test_user_queue_logic(pool: PgPool) -> anyhow::Result<()> {
+        let mut conn = pool.acquire().await?;
+        // Insert two users into the db.
+        let user1 = get_user_id_or_insert(&mut conn, "key1", "user1", "id1").await?;
+        insert_user_queue(&mut conn, &user1.id).await?;
+        let user2 = get_user_id_or_insert(&mut conn, "key2", "user2", "id2").await?;
+        insert_user_queue(&mut conn, &user2.id).await?;
+        // Make it so user1 has an earlier last update time than user1
+        update_user_queue_to(
+            &user1.id,
+            &PgInterval {
+                months: 0,
+                days: 2,
+                microseconds: 0,
+            },
+            &mut conn,
+        )
+        .await?;
+        update_user_queue_to(
+            &user2.id,
+            &PgInterval {
+                months: 0,
+                days: 1,
+                microseconds: 0,
+            },
+            &mut conn,
+        )
+        .await?;
+        // Insert work for user 2
+        let worlds = upsert_worlds(
+            &mut conn,
+            &user2.id,
+            vec![WorldInsert {
+                worldanvil_id: "worldid".to_string(),
+                name: "testworld".to_string(),
+            }],
+        )
+        .await?;
+        let article_id =
+            register_article(user2.id, worlds[0], "myurl", "mytitle", &mut conn).await?;
+        insert_tasks(&user2.id, &[article_id], &mut conn).await?;
+
+        // Finally, attempt to select a user for work.
+        // It should select user 2.
+        let mut tx = conn.begin().await?;
+        let task = get_next_user(&mut tx).await?;
+        let task_user_id = task.map(|t| t.user_id);
+        assert_eq!(task_user_id, Some(user2.id));
+
+        Ok(())
+    }
 }

@@ -159,7 +159,7 @@ mod test {
             Article {
                 id: "4736f4c7-8cba-4668-ba9b-bc5d0478efe9".to_string(),
                 title: "04".to_string(),
-                slug: "04-article".to_string(),
+                slug: Some("04-article".to_string()),
                 state: State::Public,
                 is_wip: false,
                 is_draft: false,
