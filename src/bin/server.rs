@@ -12,15 +12,13 @@ use libtater::db::schema::WorldInsert;
 use libtater::db::user::get_user;
 use libtater::db::world::{get_world, get_worlds, upsert_worlds};
 use libtater::err::AppError;
-use libtater::log_config::default_log_config;
 use libtater::req::get_wa_client_builder;
 use libtater::routes::article;
 use libtater::routes::login::{login_get, login_post};
+use libtater::setup_logging;
 use libtater::templates::TEMPLATES;
 use libtater::worldanvil_api::get_worlds_for_user;
-use simplelog::{CombinedLogger, TermLogger, WriteLogger};
 use sqlx::PgPool;
-use std::fs::{File, OpenOptions};
 use tera::Context;
 use time::Duration;
 use tokio::task::AbortHandle;
@@ -58,19 +56,7 @@ async fn shutdown_signal(deletion_task_abort_handle: AbortHandle) {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
-    let log_file = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open("log/server.log")?;
-    CombinedLogger::init(vec![
-        TermLogger::new(
-            simplelog::LevelFilter::Info,
-            default_log_config(),
-            Default::default(),
-            Default::default(),
-        ),
-        WriteLogger::new(simplelog::LevelFilter::Info, Default::default(), log_file),
-    ])?;
+    setup_logging("log/server.log")?;
 
     let pool = PgPool::connect_with(get_connection_options()).await?;
 

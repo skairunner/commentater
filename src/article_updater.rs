@@ -18,6 +18,7 @@ pub struct TaskError {
 
 pub enum TaskOutcome {
     Completed,
+    NoUser,
     NoTasks,
     Error(TaskError),
 }
@@ -126,7 +127,7 @@ pub async fn update_task(mut tx: sqlx::Transaction<'_, Postgres>) -> anyhow::Res
     let user_queue_entry = get_next_user(&mut tx).await?;
     let user_queue_entry = match user_queue_entry {
         Some(entry) => entry,
-        None => return Ok(TaskOutcome::NoTasks),
+        None => return Ok(TaskOutcome::NoUser),
     };
     let task = get_next_task(&user_queue_entry.user_id, &mut tx).await?;
     let task = match task {
@@ -137,7 +138,7 @@ pub async fn update_task(mut tx: sqlx::Transaction<'_, Postgres>) -> anyhow::Res
     // Use inner transaction to discard partial updates.
     let mut inner_tx = tx.begin().await?;
     match update_task_inner(&task, &mut inner_tx).await {
-        Ok(TaskOutcome::NoTasks) => {
+        Ok(TaskOutcome::NoTasks | TaskOutcome::NoUser) => {
             // This should never be returned.
             panic!("No tasks returned from inner update task");
         }
