@@ -55,7 +55,7 @@ pub struct SubscriberGroup {}
 pub struct Article {
     pub id: String,
     pub title: String,
-    pub slug: String,
+    pub slug: Option<String>,
     pub state: State,
     pub is_wip: bool,
     pub is_draft: bool,
@@ -112,7 +112,7 @@ pub enum IdentityResult {
 pub struct World {
     pub id: String,
     pub title: String,
-    pub slug: String,
+    pub slug: Option<String>,
     pub state: State,
     pub is_wip: Option<bool>,
     pub is_draft: Option<bool>,
