@@ -59,7 +59,7 @@ pub struct ArticleDetails {
     pub user_id: i64,
     pub world_id: i64,
     pub url: String,
-    #[serde(with = "time::serde::iso8601::option")]
+    #[serde(serialize_with = "date_option_as_human_friendly")]
     pub last_checked: Option<OffsetDateTime>,
     pub title: String,
     pub worldanvil_id: Option<String>,
