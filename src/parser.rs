@@ -17,11 +17,11 @@ pub struct Article {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseError {
-    #[error("could not find #visual-container")]
+    #[error("could not find #visual-container, is the article private?")]
     NoVisualContainer,
-    #[error("could not find #content .article-title h1")]
+    #[error("could not find #content .article-title h1, is the header hidden?")]
     NoHeader,
-    #[error("could not find .page-article-main")]
+    #[error("could not find .page-article-main, is there no article content?")]
     NoPageArticleMain,
 }
 
