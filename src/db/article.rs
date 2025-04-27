@@ -45,15 +45,17 @@ pub async fn register_articles<'a, A: PgAcquire<'a>>(
     .await?;
     sqlx::query!(
         "
-        INSERT INTO article(user_id, world_id, url, title)
+        INSERT INTO article(user_id, world_id, url, title, worldanvil_id)
         SELECT $1 as user_id, $2 as world_id, *
-        FROM UNNEST($3::text[], $4::text[])
-        ON CONFLICT DO NOTHING
+        FROM UNNEST($3::text[], $4::text[], $5::text[])
+        ON CONFLICT (worldanvil_id) DO UPDATE
+        SET url = excluded.url, title = excluded.title
         RETURNING id;",
         user_id,
         world_id,
         urls,
-        titles
+        titles,
+        worldanvil_ids,
     )
     .fetch_optional(&mut *conn)
     .await
