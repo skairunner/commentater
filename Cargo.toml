@@ -16,8 +16,8 @@ name = "create_test_data"
 [[bin]]
 name = "articlewatch"
 
-#[[bin]]
-#name = "metrics"
+[[bin]]
+name = "metrics"
 
 [dependencies]
 anyhow = "1.0.98"
