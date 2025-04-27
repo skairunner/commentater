@@ -31,7 +31,7 @@ pub async fn register_articles<'a, A: PgAcquire<'a>>(
     titles: &[String],
     worldanvil_ids: &[String],
     conn: A,
-) -> Result<i64, sqlx::Error> {
+) -> Result<Option<i64>, sqlx::Error> {
     let mut conn = conn.acquire().await?;
     // Delete articles that no longer exist
     sqlx::query!(
@@ -55,9 +55,9 @@ pub async fn register_articles<'a, A: PgAcquire<'a>>(
         urls,
         titles
     )
-    .fetch_one(&mut *conn)
+    .fetch_optional(&mut *conn)
     .await
-    .map(|r| r.id)
+    .map(|r| r.map(|r| r.id))
 }
 
 /// Create or update the article content entry
